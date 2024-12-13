@@ -6,5 +6,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3001,
+  },
+  optimizeDeps: {
+    exclude: ['itk-wasm']
+  },
+  worker: {
+    format: 'es',
+    plugins: () => [react()],
   }
 });
