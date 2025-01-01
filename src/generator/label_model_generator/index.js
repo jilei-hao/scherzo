@@ -1,12 +1,37 @@
 import { convertItkToVtkImage } from '@kitware/vtk.js/Common/DataModel/ITKHelper'
 
-async function GenerateModelForOneLabel (binaryImage, config) {
+import { Image } from 'itk-wasm';
+
+function GenerateLabelBinaryImage(itkImage, labelValue) {
+  const dimension = itkImage.imageType.dimension;
+  const pixelType = itkImage.imageType.pixelType;
+  const componentType = itkImage.imageType.componentType;
+  const size = itkImage.size;
+  const spacing = itkImage.spacing;
+  const origin = itkImage.origin;
+  const direction = itkImage.direction;
+
+
+  const binaryImage = new Image(itkImage.imageType);
+  binaryImage.size = size;
+  binaryImage.spacing = spacing;
+  binaryImage.origin = origin;
+  binaryImage.direction = direction;
+  binaryImage.data = new itkImage.data.constructor(itkImage.data.length);
+
+  for (let i = 0; i < itkImage.data.length; i++) {
+    binaryImage.data[i] = itkImage.data[i] == labelValue ? 1 : 0;
+  }
+
+  return binaryImage;
+}
+
+async function GenerateModelForOneLabel(binaryImage, config) {
   console.log("[GenerateModelForOneLabel] binaryImage", binaryImage);
   console.log("[GenerateModelForOneLabel] config", config);
 
   return;
 }
-
 
 export default async function GenerateLabelModel(itkImage, config) {
   console.log("[GenerateLabelModel] itkImage", itkImage);
@@ -28,23 +53,15 @@ export default async function GenerateLabelModel(itkImage, config) {
   for (let i = 0; i < uniqueValues.length; i++) {
     const labelValue = uniqueValues[i];
 
-    const labelModel = {
-      label: labelValue,
-      model: null
-    };
+    const itkBinaryImage = GenerateLabelBinaryImage(itkImage, labelValue);
+
+    const vtkBinaryImage = convertItkToVtkImage(itkBinaryImage);
+
+    console.log("[GenerateLabelModel] vtkBinaryImage", vtkBinaryImage);
 
     // generate the label model
-    // labelModel.model = generateLabelModel(itkImage, labelValue, config);
-
-    console.log("[GenerateLabelModel] labelModel", labelModel);
+    await GenerateModelForOneLabel(vtkBinaryImage, config);
   }
-
-
-  const vtkImage = convertItkToVtkImage(itkImage);
-
-  console.log("[GenerateLabelModel] vtkImage", vtkImage);
-
-
 
   return;
 }

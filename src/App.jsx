@@ -3,7 +3,7 @@ import './App.css'
 import WelcomePage from './welcome_page'
 import readImageFromFile from './io/image_io/image_reader'
 
-import { convertItkToVtkImage } from '@kitware/vtk.js/Common/DataModel/ITKHelper'
+
 import { GenerateLabelModel } from './generator'
 
 
@@ -35,10 +35,6 @@ function App() {
     }
 
     GenerateLabelModel(image, {});
-
-    const vtkImage = convertItkToVtkImage(image);
-
-    console.log("[handleModelGeneration] vtkImage", vtkImage);
 
 
   }
