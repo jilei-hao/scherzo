@@ -1,22 +1,14 @@
 import { convertItkToVtkImage } from '@kitware/vtk.js/Common/DataModel/ITKHelper'
+import vtkImageMarchingCubes from '@kitware/vtk.js/Filters/General/ImageMarchingCubes';
 
 import { Image } from 'itk-wasm';
 
 function GenerateLabelBinaryImage(itkImage, labelValue) {
-  const dimension = itkImage.imageType.dimension;
-  const pixelType = itkImage.imageType.pixelType;
-  const componentType = itkImage.imageType.componentType;
-  const size = itkImage.size;
-  const spacing = itkImage.spacing;
-  const origin = itkImage.origin;
-  const direction = itkImage.direction;
-
-
   const binaryImage = new Image(itkImage.imageType);
-  binaryImage.size = size;
-  binaryImage.spacing = spacing;
-  binaryImage.origin = origin;
-  binaryImage.direction = direction;
+  binaryImage.size = itkImage.size;;
+  binaryImage.spacing = itkImage.spacing;
+  binaryImage.origin = itkImage.origin;
+  binaryImage.direction = itkImage.direction;
   binaryImage.data = new itkImage.data.constructor(itkImage.data.length);
 
   for (let i = 0; i < itkImage.data.length; i++) {
@@ -27,16 +19,14 @@ function GenerateLabelBinaryImage(itkImage, labelValue) {
 }
 
 async function GenerateModelForOneLabel(binaryImage, config) {
-  console.log("[GenerateModelForOneLabel] binaryImage", binaryImage);
-  console.log("[GenerateModelForOneLabel] config", config);
+  const mc = vtkImageMarchingCubes.newInstance({ contourValue: 1.0 });
+  mc.setInputData(binaryImage);
 
-  return;
+
+  return mc.getOutputData();
 }
 
 export default async function GenerateLabelModel(itkImage, config) {
-  console.log("[GenerateLabelModel] itkImage", itkImage);
-  console.log("[GenerateLabelModel] config", config);
-
   // get unique labels in the file
   const pixelData = itkImage.data;
   const uniqueValues = Array.from(new Set(pixelData));
@@ -49,19 +39,20 @@ export default async function GenerateLabelModel(itkImage, config) {
 
   console.log("[GenerateLabelModel] uniqueValues", uniqueValues);
 
+  let models = {};
+
   // for each unique label, generate a label model
   for (let i = 0; i < uniqueValues.length; i++) {
     const labelValue = uniqueValues[i];
 
     const itkBinaryImage = GenerateLabelBinaryImage(itkImage, labelValue);
-
     const vtkBinaryImage = convertItkToVtkImage(itkBinaryImage);
 
     console.log("[GenerateLabelModel] vtkBinaryImage", vtkBinaryImage);
 
-    // generate the label model
-    await GenerateModelForOneLabel(vtkBinaryImage, config);
+    // generate the label model and add to models with label as key
+    models[labelValue] = await GenerateModelForOneLabel(vtkBinaryImage, config);
   }
 
-  return;
+  return models;
 }

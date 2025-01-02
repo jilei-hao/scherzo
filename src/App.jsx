@@ -1,17 +1,18 @@
 import { useState } from 'react'
 import './App.css'
 import WelcomePage from './welcome_page'
+import ViewerPage from './viewer_page'
 import readImageFromFile from './io/image_io/image_reader'
 
 
 import { GenerateLabelModel } from './generator'
 
 
-
-
 function App() {
-  const [count, setCount] = useState(0)
-  const [image, setImage] = useState(null)
+  const [count, setCount] = useState(0);
+  const [image, setImage] = useState(null);
+  const [models, setModels] = useState(null);
+  const [appStatus, setAppStatus] = useState("welcome"); // welcome, loading, viewing
 
   const handleFileChange = async (event) => {
     const files = event.target.files;
@@ -34,17 +35,28 @@ function App() {
       console.log("[handleModelGeneration] image found!");
     }
 
-    GenerateLabelModel(image, {});
+    const models = await GenerateLabelModel(image, {});
 
+    console.log("[handleModelGeneration] models", models);
 
+    setModels(models);
+    setAppStatus("viewing");
   }
 
   return (
     <>
+    {appStatus === "welcome" && (
       <WelcomePage
         onFileChange={handleFileChange}
         onGenerateClicked={handleModelGeneration}
       />
+    )}
+    {(appStatus === "loading" || appStatus === "viewing") && (
+      <ViewerPage
+        image={image}
+        models={models}
+      />
+    )}
     </>
   )
 }
