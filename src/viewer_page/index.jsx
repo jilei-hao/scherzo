@@ -9,46 +9,65 @@ import vtkRenderWindow from '@kitware/vtk.js/Rendering/Core/RenderWindow';
 import vtkRenderWindowInteractor from '@kitware/vtk.js/Rendering/Core/RenderWindowInteractor';
 import vtkRenderer from '@kitware/vtk.js/Rendering/Core/Renderer';
 import vtkInteractorStyleTrackballCamera from '@kitware/vtk.js/Interaction/Style/InteractorStyleTrackballCamera';
+import vtkGenericRenderWindow from "@kitware/vtk.js/Rendering/Misc/GenericRenderWindow";
 import vtkActor from '@kitware/vtk.js/Rendering/Core/Actor';
 import vtkMapper from "@kitware/vtk.js/Rendering/Core/Mapper";
 
 export default function ViewerPage(props) {
   const rwContainerRef = useRef(null);
+  const vtkRwRef = useRef(null);
   const rwRef = useRef(null);
+  const renRef = useRef(null);
+  const actorListRef = useRef(null);
+  const activeTPRef = useRef(1);
 
   console.log("[ViewerPage]: models", props.models);
 
   useEffect(() => {
-    if (rwRef.current)
+    if (vtkRwRef.current)
       return;
 
-    const rw = vtkRenderWindow.newInstance();
-    const rwView = rw.newAPISpecificView();
-    rw.addView(rwView);
+    // set up the rendering window
+    const vtkRw = vtkGenericRenderWindow.newInstance();
+    vtkRw.setContainer(rwContainerRef.current);
+    vtkRw.resize(); // important to call this after setting the container
 
-    // configure renderer
-    const ren = vtkRenderer.newInstance({ background: [0.9, 0.9, 0.9] });
-    rw.addRenderer(ren);
+    const rw = vtkRw.getRenderWindow();
+    const ren = vtkRw.getRenderer();
+    
+    // for each label model, create an actor and add it to the renderer
+    let actorList = [];
 
-    // configure interactor
-    const interactor = vtkRenderWindowInteractor.newInstance();
-    interactor.setView(rwView);
-    interactor.initialize();
-    interactor.setInteractorStyle(vtkInteractorStyleTrackballCamera.newInstance());
+    const activeTPModel = props.models[activeTPRef.current - 1];
 
+    for (let i = 0; i < activeTPModel.length; i++) {
+      const actor = vtkActor.newInstance();
+      const mapper = vtkMapper.newInstance();
+      const label = activeTPModel[i].label;
+      const labelModel = activeTPModel[i].model;
+      mapper.setInputData(labelModel);
+      actor.setMapper(mapper);
+      ren.addActor(actor);
+      actorList.push({
+        label: label,
+        actor: actor
+      });
+    }
 
+    actorListRef.current = actorList;
 
-    const actor = vtkActor.newInstance();
-    const mapper = vtkMapper.newInstance();
-    mapper.setInputData(props.models[2]);
-    actor.setMapper(mapper);
-    ren.addActor(actor);
     ren.resetCamera();
-
-
-    rwView.setContainer(rwContainerRef.current);
-    rwRef.current = rw;
     rw.render();
+
+    rwRef.current = rw;
+    renRef.current = ren;
+    vtkRwRef.current = vtkRw;
+
+    return () => {
+      console.log("[ViewerPage] component dismount");
+      vtkRwRef.current.delete();
+      vtkRwRef.current = null;
+    }
   }, []);
 
   return (
