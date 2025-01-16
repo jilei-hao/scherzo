@@ -1,0 +1,23 @@
+.tp_slider {
+  -webkit-appearance: none;  /* Override default CSS styles */
+  appearance: none;
+  width: 200px; /* Full-width */
+  height: 30px; /* Specified height */
+  background:rgb(192, 192, 192);/* Grey background */
+  outline: none; /* Remove outline */
+  opacity: 1; /* Set transparency (for mouse-over effects on hover) */
+  margin-top: auto;
+  margin-bottom: auto;
+  border-radius: 10px;
+  vertical-align: middle;
+}
+  
+.tp_slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 25%;
+  width: 43px;
+  height: 50px;
+  background: rgb(90, 90, 90);
+  cursor: pointer;
+}

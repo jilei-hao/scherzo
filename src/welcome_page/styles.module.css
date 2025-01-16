@@ -1,0 +1,34 @@
+.welcomePageContainer {
+  height: 35vh;
+  width: 70vw;
+  min-width: 600px;
+}
+
+.fileSelectionLabel {
+  margin-right: 7px;
+}
+
+.buttonGenerate {
+  background-color: #eee;
+  width: 170px;
+}
+
+.spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-left-color: #000;
+  border-radius: 50%;
+  width: 8px;
+  height: 8px;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  margin-left: 10px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

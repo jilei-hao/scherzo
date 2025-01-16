@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 417 468.9">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+        stroke: #fff;
+      }
+
+      .cls-1, .cls-2, .cls-3 {
+        stroke-miterlimit: 10;
+        stroke-width: 20px;
+      }
+
+      .cls-2 {
+        fill: none;
+      }
+
+      .cls-2, .cls-3 {
+        stroke: #58595b;
+      }
+
+      .cls-3 {
+        fill: #58595b;
+      }
+    </style>
+  </defs>
+  <g id="Layer_1-2" data-name="Layer 1">
+    <rect class="cls-2" x="10" y="10" width="334.9" height="399" rx="28.4" ry="28.4"/>
+    <path class="cls-3" d="M166.3,457.7l-130.1-47.2c-11-4-20-16.8-20.1-28.6L13.8,35.3c0-11.8,8.8-18.1,19.8-14.1l130.1,47.2c11,4,20,16.8,20.1,28.6l2.3,346.6c0,11.8-8.8,18.1-19.8,14.1h0Z"/>
+    <rect class="cls-1" x="335" y="121.1" width="21.5" height="176.7"/>
+  </g>
+  <g>
+    <rect class="cls-3" x="303.3" y="153.9" width="92" height="111.1" rx="8.9" ry="8.9"/>
+    <path class="cls-3" d="M218.7,218.9l63.2,81.3c8.9,11.5,27.3,5.2,27.3-9.4v-162.7c0-14.5-18.4-20.9-27.3-9.4l-63.2,81.3c-4.3,5.5-4.3,13.2,0,18.7Z"/>
+  </g>
+</svg>
