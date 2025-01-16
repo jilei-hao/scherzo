@@ -158,7 +158,7 @@ export default async function GenerateLabelModel(itkImage, config) {
   }
 
 
-  generator.readImage(dims, spacing, origin, direction, dims);
+  generator.readImage(dims, spacing, origin, direction, data);
   generator.generateModel();
 
   const tpModels = [];

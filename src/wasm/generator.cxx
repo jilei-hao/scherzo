@@ -1,22 +1,17 @@
 #include <iostream>
 #include <vector>
-#include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkMatrix3x3.h>
 #include <vtkMarchingCubes.h>
-#include <vtkPolyData.h>
-#include <vtkSmartPointer.h>
 #include <vtkImageGaussianSmooth.h>
 #include <vtkStripper.h>
+#include <vtkNIFTIImageReader.h>
 
 #include "generator.h"
 
 
 // ============================================================================
 // Helper functions
-
-using MeshPointer = vtkSmartPointer<vtkPolyData>;
-using vtkImagePointer = vtkSmartPointer<vtkImageData>;
 
 static MeshPointer GetMeshFromBinaryImage(vtkImagePointer bImage)
 {
@@ -37,12 +32,10 @@ static MeshPointer GetMeshFromBinaryImage(vtkImagePointer bImage)
 // ============================================================================
 wasmModelGenerator::wasmModelGenerator()
 {
-  m_ImageData = vtkImageData::New();
 }
 
 wasmModelGenerator::~wasmModelGenerator()
 {
-  m_ImageData->Delete();
 }
 
 void wasmModelGenerator::readImage(const std::vector<uint16_t>& dims, 
@@ -100,12 +93,12 @@ void wasmModelGenerator::readImage(const std::vector<uint16_t>& dims,
   std::cout << "Model: " << std::endl;
   m_Model->Print(std::cout);
 
-  // m_ImageData = imageData;
+  m_ImageData = imageData;
 
-  // std::cout << "vtkImageData: " << std::endl;
-  // m_ImageData->Print(std::cout);
+
+  std::cout << "vtkImageData: " << std::endl;
+  m_ImageData->Print(std::cout);
 }
-
 
 
 int wasmModelGenerator::generateModel()
@@ -117,33 +110,31 @@ int wasmModelGenerator::generateModel()
     return 1;
   }
 
-  // // Create a dummy vtkImageData for testing
-  // vtkNew<vtkImageData> dummyImageData;
-  // dummyImageData->SetDimensions(10, 10, 10);
-  // dummyImageData->SetSpacing(1.0, 1.0, 1.0);
-  // dummyImageData->SetOrigin(0.0, 0.0, 0.0);
-  // dummyImageData->AllocateScalars(VTK_UNSIGNED_SHORT, 1);
+  if (!m_Model)
+  {
+    std::cerr << "No model data!" << std::endl;
+    return 1;
+  }
 
-  // uint16_t* dummyImageDataPtr = static_cast<uint16_t*>(dummyImageData->GetScalarPointer());
-  // for (int i = 0; i < 10 * 10 * 10; ++i)
-  // {
-  //   dummyImageDataPtr[i] = (i % 2 == 0) ? 1 : 0; // Create a simple pattern
-  // }
+  std::cout << "Model: " << std::endl;
+  m_Model->Print(std::cout);
 
-  // m_ImageData = dummyImageData;
-
-  // std::cout << "vtkImageData: " << std::endl;
-  // m_ImageData->Print(std::cout);
-    
-
-  
-
-  // m_Model = fltMC->GetOutput();
+  return 
 
   return 0;
 }
 
-#include <vtkNIFTIImageReader.h>
+std::string wasmModelGenerator::getModelAsJSON()
+{
+  vtkNew<vtkJSONDataSetWriter> writer;
+  writer->SetInputData(m_Model);
+  writer->WriteToOutputStringOn();
+  writer->Update();
+  return writer->GetOutputString();
+}
+
+
+
 
 void wasmModelGenerator::readImageFromFile(std::string filename)
 {

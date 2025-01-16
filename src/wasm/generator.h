@@ -2,8 +2,12 @@
 #include <vector>
 #include <ctype.h>
 
-class vtkImageData;
-class vtkPolyData;
+#include <vtkSmartPointer.h>
+#include <vtkImageData.h>
+#include <vtkPolyData.h>
+
+using MeshPointer = vtkSmartPointer<vtkPolyData>;
+using vtkImagePointer = vtkSmartPointer<vtkImageData>;
 
 class wasmModelGenerator
 {
@@ -19,9 +23,11 @@ public:
 
   int generateModel();
 
+  std::string getModelAsJSON();
+
 private:
-  vtkImageData *m_ImageData;
-  vtkPolyData *m_Model;
+  vtkImagePointer m_ImageData;
+  MeshPointer m_Model;
 };
 
 #ifdef __EMSCRIPTEN__
@@ -31,7 +37,8 @@ EMSCRIPTEN_BINDINGS(wasmModelGeneratorJSBinding)
   emscripten::class_<wasmModelGenerator>("wasmModelGenerator")
     .constructor<>()
     .function("readImage", &wasmModelGenerator::readImage)
-    .function("generateModel", &wasmModelGenerator::generateModel);
+    .function("generateModel", &wasmModelGenerator::generateModel)
+    .function("getModelAsJSON"), &wasmModelGenerator::getModelAsJSON);
 
   emscripten::register_vector<double>("DoubleVector");
   emscripten::register_vector<uint16_t>("Uint16Vector");
