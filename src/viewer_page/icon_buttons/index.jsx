@@ -7,6 +7,7 @@ import IconPalette_Idle from '@assets/icons/palette_idle.svg';
 import IconPalette_Active from '@assets/icons/palette_active.svg';
 import IconFullScreen_Idle  from '@assets/icons/full-screen_idle.svg';
 import IconSplitScreen_Idle from '@assets/icons/split-screen_idle.svg';
+import IconDownload from '@assets/icons/download_idle.svg';
 import IconButton from './icon_button';
 import styles from './styles.module.css';
 
@@ -66,6 +67,16 @@ export function ViewCtrlBtnFullScreen({className, isFullScreen, onClick}) {
       iconSrc={isFullScreen ? IconSplitScreen_Idle : IconFullScreen_Idle}
       onClick={onClick}
       className={className}
+    />
+  );
+}
+
+export function BtnDownload({ onClick }) {
+  return (
+    <IconButton
+      iconSrc={IconDownload}
+      onClick={onClick}
+      className=''
     />
   );
 }

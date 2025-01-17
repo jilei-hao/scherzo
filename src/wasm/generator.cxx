@@ -6,6 +6,10 @@
 #include <vtkImageGaussianSmooth.h>
 #include <vtkStripper.h>
 #include <vtkNIFTIImageReader.h>
+#include <vtkTriangleFilter.h>
+#include <vtkPoints.h>
+#include <vtkCellArray.h>
+#include <vtkIdList.h>
 
 #include "generator.h"
 
@@ -90,14 +94,18 @@ void wasmModelGenerator::readImage(const std::vector<uint16_t>& dims,
   fltMC->SetValue(0, 1.0);
   fltMC->Update();
   m_Model = fltMC->GetOutput();
+
+
+  vtkNew<vtkTriangleFilter> fltTriangle;
+  fltTriangle->SetInputData(m_Model);
+  fltTriangle->Update();
+  m_Model = fltTriangle->GetOutput();
+
   std::cout << "Model: " << std::endl;
   m_Model->Print(std::cout);
 
+
   m_ImageData = imageData;
-
-
-  std::cout << "vtkImageData: " << std::endl;
-  m_ImageData->Print(std::cout);
 }
 
 
@@ -119,18 +127,53 @@ int wasmModelGenerator::generateModel()
   std::cout << "Model: " << std::endl;
   m_Model->Print(std::cout);
 
-  return 
-
   return 0;
 }
 
-std::string wasmModelGenerator::getModelAsJSON()
+std::vector<double> wasmModelGenerator::getPoints()
 {
-  vtkNew<vtkJSONDataSetWriter> writer;
-  writer->SetInputData(m_Model);
-  writer->WriteToOutputStringOn();
-  writer->Update();
-  return writer->GetOutputString();
+  std::vector<double> points;
+  if (!m_Model)
+  {
+    std::cerr << "No model data!" << std::endl;
+    return points;
+  }
+
+  vtkPoints* vtkPoints = m_Model->GetPoints();
+  for (vtkIdType i = 0; i < vtkPoints->GetNumberOfPoints(); ++i)
+  {
+    double p[3];
+    vtkPoints->GetPoint(i, p);
+    points.push_back(p[0]);
+    points.push_back(p[1]);
+    points.push_back(p[2]);
+  }
+
+  return points;
+}
+
+std::vector<int> wasmModelGenerator::getCells()
+{
+  std::vector<int> cells;
+  if (!m_Model)
+  {
+    std::cerr << "No model data!" << std::endl;
+    return cells;
+  }
+
+  vtkCellArray* vtkCells = m_Model->GetPolys();
+  vtkIdType npts;
+  const vtkIdType *pts;
+  for (vtkCells->InitTraversal(); vtkCells->GetNextCell(npts, pts); )
+  {
+    cells.push_back(npts);
+    for (vtkIdType i = 0; i < npts; ++i)
+    {
+      cells.push_back(pts[i]);
+    }
+  }
+
+  return cells;
 }
 
 

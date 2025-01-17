@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import styles from './styles.module.css';
 import { 
   BtnStepBack, BtnStepForward, BtnPlay,
-  BtnExit
+  BtnExit,
+  BtnDownload
 } from '../icon_buttons'
 import TPSlider from '../tp_slider'
 
@@ -60,6 +61,13 @@ export default function MainControlPanel (props) {
     props.setActiveTP(newTP);
   }
 
+  const handleDownloadClick = () => {
+    console.log("[MainControlPanel] handleDownloadClick");
+    props.onDownload();
+  }
+
+
+
   useEffect(() => {
     return () => {
       // console.log("[MainControlPanel] Component Unmounted");
@@ -81,6 +89,7 @@ export default function MainControlPanel (props) {
         <TPSlider nT={props.numberOfTPs} currentTP={props.activeTP} onTPChange={handleSliderTPChange} />
       </div>
       <div className={styles.viewerCtrlBtnGroup}>
+        <BtnDownload onClick={ handleDownloadClick } />
       </div>
     </div>
   );

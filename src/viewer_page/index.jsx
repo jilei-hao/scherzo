@@ -49,6 +49,17 @@ export default function ViewerPage(props) {
     setActiveTP(newTP);
   }
 
+  const handleDownload = () => {
+    const activeTPModel = props.models[activeTPRef.current - 1];
+    console.log("[ViewerPage] handleDownload", activeTPModel);
+    for (let i = 0; i < activeTPModel.length; i++) {
+      const labelModel = activeTPModel[i].model;
+      const label = activeTPModel[i].label;
+      const fileName = `label_${label}_tp_${activeTPRef.current}.vtk`;
+      vtkRwRef.current.downloadData(labelModel, fileName);
+    }
+  };
+
   const updateTPData = () => {
     const activeTPModel = props.models[activeTPRef.current - 1];
     const actorList = actorListRef.current;
@@ -136,6 +147,7 @@ export default function ViewerPage(props) {
       <MainControlPanel 
         activeTP={activeTP} numberOfTPs={props.models.length}
         setActiveTP={handleActiveTPChange} onExit={props.onExit}
+        onDownload={handleDownload}
       />
     </div>
   );

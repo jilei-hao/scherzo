@@ -3,6 +3,7 @@ import vtkImageMarchingCubes from '@kitware/vtk.js/Filters/General/ImageMarching
 import vtkWindowedSincPolyDataFilter from '@kitware/vtk.js/Filters/General/WindowedSincPolyDataFilter';
 import { Image } from 'itk-wasm';
 import createGeneratorModule from './Generator';
+import vtk from '@kitware/vtk.js/vtk';
 
 async function GenerateLabelBinaryImage(itkImage, labelValue) {
   const binaryImage = new Image(itkImage.imageType);
@@ -161,7 +162,48 @@ export default async function GenerateLabelModel(itkImage, config) {
   generator.readImage(dims, spacing, origin, direction, data);
   generator.generateModel();
 
-  const tpModels = [];
+  // Get the points and cells
+  const points = generator.getPoints();
+
+  // Recreate vtkPolyData in JavaScript
+  // const vtkPoints = vtk.Common.Core.vtkPoints.newInstance();
+  // vtkPoints.setData(Float32Array.from(points), 3);
+
+  const ptsArray = new Float32Array(points.size());
+  for (let i = 0; i < points.size(); i++) {
+    ptsArray[i] = points.get(i);
+  }
+
+  console.log("Points array:", ptsArray);
+
+  const cells = generator.getCells();
+
+  const cellArray = new Int32Array(cells.size());
+  for (let i = 0; i < cells.size(); i++) {
+    cellArray[i] = cells.get(i);
+  }
+  
+  console.log("Cells array:", cellArray);
+
+  const polydata = vtk({
+    vtkClass: 'vtkPolyData',
+    points: {
+      vtkClass: 'vtkPoints',
+      dataType: 'Float32Array',
+      numberOfComponents: 3,
+      values: ptsArray,
+    },
+    polys: {
+      vtkClass: 'vtkCellArray',
+      dataType: 'Uint16Array',
+      values: cellArray,
+    },
+  });
+
+  console.log("Recreated vtkPolyData:", polydata);
+  
+
+  const tpModels = [polydata];
 
   return tpModels;
 

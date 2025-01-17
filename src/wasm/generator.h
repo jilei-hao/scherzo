@@ -5,6 +5,7 @@
 #include <vtkSmartPointer.h>
 #include <vtkImageData.h>
 #include <vtkPolyData.h>
+#include <vtkJSONDataSetWriter.h>
 
 using MeshPointer = vtkSmartPointer<vtkPolyData>;
 using vtkImagePointer = vtkSmartPointer<vtkImageData>;
@@ -23,7 +24,9 @@ public:
 
   int generateModel();
 
-  std::string getModelAsJSON();
+  std::vector<double> getPoints();
+  std::vector<int> getCells();
+
 
 private:
   vtkImagePointer m_ImageData;
@@ -38,10 +41,12 @@ EMSCRIPTEN_BINDINGS(wasmModelGeneratorJSBinding)
     .constructor<>()
     .function("readImage", &wasmModelGenerator::readImage)
     .function("generateModel", &wasmModelGenerator::generateModel)
-    .function("getModelAsJSON"), &wasmModelGenerator::getModelAsJSON);
+    .function("getPoints", &wasmModelGenerator::getPoints)
+    .function("getCells", &wasmModelGenerator::getCells);
 
   emscripten::register_vector<double>("DoubleVector");
   emscripten::register_vector<uint16_t>("Uint16Vector");
+  emscripten::register_vector<int>("IntVector");
 }
 
 
