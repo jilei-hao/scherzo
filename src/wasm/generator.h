@@ -22,15 +22,28 @@ public:
 
   void readImageFromFile(std::string filename);
 
+  void setGaussianSigma(double sigma) { m_GaussianSigma = sigma; }
+  void setSmoothingIteration(uint16_t iteration) { m_SmoothingIteration = iteration; }
+  void setSmoothingPassband(double passband) { m_SmoothingPassband = passband; }
+  void setDecimationTargetRate(double rate) { m_DecimationTargetRate = rate; }
+  void setApplyTransformForNifti(bool apply) { m_ApplyTransformForNifti = apply; }
+  void setPrintDebugInfo(bool print) { m_PrintDebugInfo = print; }
+
   int generateModel();
 
   std::vector<double> getPoints();
   std::vector<int> getCells();
 
-
 private:
   vtkImagePointer m_ImageData;
   MeshPointer m_Model;
+  double m_GaussianSigma = 0.8;
+  uint16_t m_SmoothingIteration = 15;
+  double m_SmoothingPassband = 0.01;
+  double m_DecimationTargetRate = 0.3;
+  bool m_ApplyTransformForNifti = false;
+  bool m_PrintDebugInfo = false;
+
 };
 
 #ifdef __EMSCRIPTEN__
@@ -42,7 +55,13 @@ EMSCRIPTEN_BINDINGS(wasmModelGeneratorJSBinding)
     .function("readImage", &wasmModelGenerator::readImage)
     .function("generateModel", &wasmModelGenerator::generateModel)
     .function("getPoints", &wasmModelGenerator::getPoints)
-    .function("getCells", &wasmModelGenerator::getCells);
+    .function("getCells", &wasmModelGenerator::getCells)
+    .function("setGaussianSigma", &wasmModelGenerator::setGaussianSigma)
+    .function("setSmoothingIteration", &wasmModelGenerator::setSmoothingIteration)
+    .function("setSmoothingPassband", &wasmModelGenerator::setSmoothingPassband)
+    .function("setDecimationTargetRate", &wasmModelGenerator::setDecimationTargetRate)
+    .function("setApplyTransformForNifti", &wasmModelGenerator::setApplyTransformForNifti)
+    .function("setPrintDebugInfo", &wasmModelGenerator::setPrintDebugInfo);
 
   emscripten::register_vector<double>("DoubleVector");
   emscripten::register_vector<uint16_t>("Uint16Vector");

@@ -2,6 +2,7 @@
 #include <vector>
 #include <vtkNew.h>
 #include <vtkMatrix3x3.h>
+#include <vtkMatrix4x4.h>
 #include <vtkMarchingCubes.h>
 #include <vtkImageGaussianSmooth.h>
 #include <vtkStripper.h>
@@ -10,6 +11,12 @@
 #include <vtkPoints.h>
 #include <vtkCellArray.h>
 #include <vtkIdList.h>
+#include <vtkWindowedSincPolyDataFilter.h>
+#include <vtkQuadricDecimation.h>
+#include <vtkCleanPolyData.h>
+#include <vtkPolyDataNormals.h>
+#include <vtkTransform.h>
+#include <vtkTransformPolyDataFilter.h>
 
 #include "generator.h"
 
@@ -33,6 +40,93 @@ static MeshPointer GetMeshFromBinaryImage(vtkImagePointer bImage)
 }
 
 
+
+static vtkSmartPointer<vtkMatrix4x4> constructNiftiSform(
+  vtkMatrix3x3* m_dir, double* v_origin, double* v_spacing)
+{
+  // Set the NIFTI/RAS transform
+  vtkNew<vtkMatrix4x4> m_sform;
+  vtkNew<vtkMatrix4x4> m_ras_matrix;
+  vtkNew<vtkMatrix4x4> m_scale;
+  vtkNew<vtkMatrix4x4> m_lps_to_ras;
+
+  // Initialize matrices
+  m_sform->Identity();
+  m_ras_matrix->Identity();
+  m_scale->Identity();
+  m_lps_to_ras->Identity();
+
+  // Compute the scale matrix
+  for (int i = 0; i < 3; ++i)
+  {
+  m_scale->SetElement(i, i, v_spacing[i]);
+  }
+
+  // Compute the LPS to RAS matrix
+  m_lps_to_ras->SetElement(0, 0, -1);
+  m_lps_to_ras->SetElement(1, 1, -1);
+
+  // Compute the RAS matrix
+  vtkNew<vtkMatrix4x4> tempMatrix;
+  vtkMatrix4x4::Multiply4x4(m_lps_to_ras, m_scale, tempMatrix);
+  for (int i = 0; i < 3; ++i)
+  {
+  for (int j = 0; j < 3; ++j)
+  {
+    m_ras_matrix->SetElement(i, j, tempMatrix->GetElement(i, j) * m_dir->GetElement(i, j));
+  }
+  }
+
+  // Compute the RAS offset vector
+  double v_ras_offset[3];
+  for (int i = 0; i < 3; ++i)
+  {
+  v_ras_offset[i] = 0;
+  for (int j = 0; j < 3; ++j)
+  {
+    v_ras_offset[i] += m_lps_to_ras->GetElement(i, j) * v_origin[j];
+  }
+  }
+
+  // Set the RAS matrix and offset in the sform matrix
+  for (int i = 0; i < 3; ++i)
+  {
+  for (int j = 0; j < 3; ++j)
+  {
+    m_sform->SetElement(i, j, m_ras_matrix->GetElement(i, j));
+  }
+  m_sform->SetElement(i, 3, v_ras_offset[i]);
+  }
+
+  return m_sform;
+}
+
+static vtkSmartPointer<vtkTransform> getVTKToNiftiTransform(vtkImageData* image)
+{
+  vtkNew<vtkTransform> vtk2niiTransform;
+  double *spacing = image->GetSpacing();
+  double *origin = image->GetOrigin();
+  vtkMatrix3x3 *direction = image->GetDirectionMatrix();
+
+  vtkMatrix4x4 *vox2nii = constructNiftiSform(direction, origin, spacing);
+  vtkNew<vtkMatrix4x4> vtk2vox;
+  vtk2vox->Identity();
+  for (int i = 0; i < 3; ++i)
+  {
+    vtk2vox->SetElement(i, i, 1.0 / spacing[i]);
+    vtk2vox->SetElement(i, 3, -origin[i] / spacing[i]);
+  }
+
+  vtkNew<vtkMatrix4x4> vtk2nii;
+  vtkMatrix4x4::Multiply4x4(vox2nii, vtk2vox, vtk2nii);
+
+  vtk2niiTransform->SetMatrix(vtk2nii);
+  vtk2niiTransform->Update();
+
+  return vtk2niiTransform;
+}
+
+
 // ============================================================================
 wasmModelGenerator::wasmModelGenerator()
 {
@@ -46,14 +140,15 @@ void wasmModelGenerator::readImage(const std::vector<uint16_t>& dims,
     const std::vector<double>& spacing, const std::vector<double>& origin,
     const std::vector<double>& direction, const std::vector<uint16_t>& buffer)
 {
-  std::cout << "Reading image... dim = [" << dims[0] << ", " << dims[1] << ", " << dims[2] << "]" << std::endl;
-  std::cout << "Spacing = [" << spacing[0] << ", " << spacing[1] << ", " << spacing[2] << "]" << std::endl;
-  std::cout << "Origin = [" << origin[0] << ", " << origin[1] << ", " << origin[2] << "]" << std::endl;
-  std::cout << "Direction1 = [" << direction[0] << ", " << direction[1] << ", " << direction[2] << "]" << std::endl;
-  std::cout << "Direction2 = [" << direction[3] << ", " << direction[4] << ", " << direction[5] << "]" << std::endl;
-  std::cout << "Direction3 = [" << direction[6] << ", " << direction[7] << ", " << direction[8] << "]" << std::endl;
-  const int length = dims[0] * dims[1] * dims[2] * sizeof(uint16_t);
-  std::cout << "Buffer length: " << length << std::endl;
+  if (m_PrintDebugInfo)
+  {
+    std::cout << "Reading image... dim = [" << dims[0] << ", " << dims[1] << ", " << dims[2] << "]" << std::endl;
+    std::cout << "Spacing = [" << spacing[0] << ", " << spacing[1] << ", " << spacing[2] << "]" << std::endl;
+    std::cout << "Origin = [" << origin[0] << ", " << origin[1] << ", " << origin[2] << "]" << std::endl;
+    std::cout << "Direction1 = [" << direction[0] << ", " << direction[1] << ", " << direction[2] << "]" << std::endl;
+    std::cout << "Direction2 = [" << direction[3] << ", " << direction[4] << ", " << direction[5] << "]" << std::endl;
+    std::cout << "Direction3 = [" << direction[6] << ", " << direction[7] << ", " << direction[8] << "]" << std::endl;
+  }
 
   // create a new vtkImageData
   vtkNew<vtkImageData> imageData;
@@ -82,50 +177,86 @@ void wasmModelGenerator::readImage(const std::vector<uint16_t>& dims,
     imageDataPtr[i] = buffer[i];
   }
 
-  vtkNew<vtkImageGaussianSmooth> fltSmooth;
-  fltSmooth->SetInputData(imageData);
-  fltSmooth->SetStandardDeviations(0.8, 0.8, 0.8);
-  fltSmooth->SetRadiusFactors(1.5, 1.5, 1.5);
-  fltSmooth->Update();
-  auto vtkImg_sm = fltSmooth->GetOutput();
-
-  vtkNew<vtkMarchingCubes> fltMC;
-  fltMC->SetInputData(vtkImg_sm);
-  fltMC->SetValue(0, 1.0);
-  fltMC->Update();
-  m_Model = fltMC->GetOutput();
-
-
-  vtkNew<vtkTriangleFilter> fltTriangle;
-  fltTriangle->SetInputData(m_Model);
-  fltTriangle->Update();
-  m_Model = fltTriangle->GetOutput();
-
-  std::cout << "Model: " << std::endl;
-  m_Model->Print(std::cout);
-
-
   m_ImageData = imageData;
 }
 
 
 int wasmModelGenerator::generateModel()
 {
-  std::cout << "Generating model..." << std::endl;
+  std::cout << "[wasmModelGenerator::generateModel] Generating..." << std::endl;
   if (!m_ImageData) 
   {
     std::cerr << "No image data!" << std::endl;
     return 1;
   }
 
-  if (!m_Model)
+  vtkNew<vtkImageGaussianSmooth> fltSmooth;
+  fltSmooth->SetInputData(m_ImageData);
+  fltSmooth->SetStandardDeviations(m_GaussianSigma, m_GaussianSigma, m_GaussianSigma);
+  fltSmooth->SetRadiusFactors(1.5, 1.5, 1.5);
+
+  vtkNew<vtkMarchingCubes> fltMC;
+  fltMC->SetInputConnection(fltSmooth->GetOutputPort());
+  fltMC->SetValue(0, 1.0);
+
+  vtkNew<vtkTriangleFilter> fltTriangle;
+  fltTriangle->SetInputConnection(fltMC->GetOutputPort());
+
+  vtkNew<vtkPolyDataNormals> fltNormals;
+  fltNormals->SetInputConnection(fltTriangle->GetOutputPort());
+  fltNormals->ConsistencyOn();
+  fltNormals->AutoOrientNormalsOn();
+  fltNormals->FlipNormalsOn();
+
+  vtkNew<vtkCleanPolyData> fltClean;
+  fltClean->SetInputConnection(fltNormals->GetOutputPort());
+
+  vtkNew<vtkWindowedSincPolyDataFilter> fltSmoothing;
+  fltSmoothing->SetInputConnection(fltClean->GetOutputPort());
+  fltSmoothing->SetNumberOfIterations(m_SmoothingIteration);
+  fltSmoothing->BoundarySmoothingOff();
+  fltSmoothing->FeatureEdgeSmoothingOff();
+  fltSmoothing->SetFeatureAngle(120.0);
+  fltSmoothing->SetPassBand(m_SmoothingPassband);
+  fltSmoothing->NonManifoldSmoothingOn();
+  fltSmoothing->NormalizeCoordinatesOn();
+
+  vtkNew<vtkQuadricDecimation> fltDecimate;
+  fltDecimate->SetInputConnection(fltSmoothing->GetOutputPort());
+  fltDecimate->SetTargetReduction(0.30);
+
+
+  vtkNew<vtkWindowedSincPolyDataFilter> fltSmoothing2;
+  fltSmoothing2->SetInputConnection(fltDecimate->GetOutputPort());
+  fltSmoothing2->SetNumberOfIterations(m_SmoothingIteration);
+  fltSmoothing2->BoundarySmoothingOff();
+  fltSmoothing2->FeatureEdgeSmoothingOff();
+  fltSmoothing2->SetFeatureAngle(120.0);
+  fltSmoothing2->SetPassBand(m_SmoothingPassband);
+  fltSmoothing2->NonManifoldSmoothingOn();
+  fltSmoothing2->NormalizeCoordinatesOn();
+
+  fltSmoothing2->Update();
+
+
+  m_Model = fltSmoothing2->GetOutput();
+  
+  if (m_ApplyTransformForNifti)
   {
-    std::cerr << "No model data!" << std::endl;
-    return 1;
+    std::cout << "[wasmModelGenerator::generateModel] Applying transform for Nifti..." << std::endl;
+    vtkSmartPointer<vtkTransform> vtk2niiTransform = getVTKToNiftiTransform(m_ImageData);
+    vtkNew<vtkTransformPolyDataFilter> fltTransform;
+    fltTransform->SetTransform(vtk2niiTransform);
+    fltTransform->SetInputData(m_Model);
+    fltTransform->Update();
+    m_Model = fltTransform->GetOutput();
   }
 
-  std::cout << "Model: " << std::endl;
-  m_Model->Print(std::cout);
+  if (m_PrintDebugInfo)
+  {
+    std::cout << "Model: " << std::endl;
+    m_Model->Print(std::cout);
+  }
 
   return 0;
 }
@@ -152,6 +283,7 @@ std::vector<double> wasmModelGenerator::getPoints()
   return points;
 }
 
+
 std::vector<int> wasmModelGenerator::getCells()
 {
   std::vector<int> cells;
@@ -177,11 +309,9 @@ std::vector<int> wasmModelGenerator::getCells()
 }
 
 
-
-
 void wasmModelGenerator::readImageFromFile(std::string filename)
 {
-  std::cout << "Reading image from file: " << filename << std::endl;
+  std::cout << "[wasmModelGenerator::readImageFromFile] Reading: " << filename << std::endl;
 
   vtkNew<vtkNIFTIImageReader> reader;
   reader->SetFileName(filename.c_str());

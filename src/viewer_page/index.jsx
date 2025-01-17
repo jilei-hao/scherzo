@@ -52,12 +52,7 @@ export default function ViewerPage(props) {
   const handleDownload = () => {
     const activeTPModel = props.models[activeTPRef.current - 1];
     console.log("[ViewerPage] handleDownload", activeTPModel);
-    for (let i = 0; i < activeTPModel.length; i++) {
-      const labelModel = activeTPModel[i].model;
-      const label = activeTPModel[i].label;
-      const fileName = `label_${label}_tp_${activeTPRef.current}.vtk`;
-      vtkRwRef.current.downloadData(labelModel, fileName);
-    }
+
   };
 
   const updateTPData = () => {
@@ -91,6 +86,7 @@ export default function ViewerPage(props) {
     let actorList = [];
 
     const activeTPModel = props.models[activeTPRef.current - 1];
+    console.log("[ViewerPage] ActiveTPModel", activeTPModel);
 
     for (let i = 0; i < activeTPModel.length; i++) {
       const actor = vtkActor.newInstance();
@@ -98,6 +94,8 @@ export default function ViewerPage(props) {
       
       const label = activeTPModel[i].label;
       const labelModel = activeTPModel[i].model;
+
+      console.log("[ViewerPage] label", label, labelModel);
 
       mapper.setInputData(labelModel);
       mapper.setScalarVisibility(false);

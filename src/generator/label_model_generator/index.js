@@ -21,23 +21,79 @@ async function GenerateLabelBinaryImage(itkImage, labelValue) {
 }
 
 async function GenerateModelForOneLabel(binaryImage, config) {
-  const mc = vtkImageMarchingCubes.newInstance({ contourValue: 1.0 });
-  mc.setInputData(binaryImage);
+  const wasmModule = await createGeneratorModule();
+  console.log("[GenerateLabelModel] wasmModule", wasmModule);
 
-  const smoothFilter = vtkWindowedSincPolyDataFilter.newInstance({
-    nonManifoldSmoothing: 1,
-    numberOfIterations: 50,
-    passBand: 0.01,
-    featureEdgeSmoothing: 1,
-    edgeAngle: 5,
-    featureAngle: 10,
+  const wasmModelGenerator = wasmModule.wasmModelGenerator;
+
+  const generator = new wasmModelGenerator();
+  generator.setApplyTransformForNifti(true);
+
+  const dims = new wasmModule.Uint16Vector();
+  for (let i = 0; i < 3; i++) {
+    dims.push_back(binaryImage.size[i]);
+  } 
+
+  const spacing = new wasmModule.DoubleVector();
+  for (let i = 0; i < 3; i++) {
+    spacing.push_back(binaryImage.spacing[i]);
+  }
+
+  const origin = new wasmModule.DoubleVector();
+  for (let i = 0; i < 3; i++) {
+    origin.push_back(binaryImage.origin[i]);
+  }
+
+  const direction = new wasmModule.DoubleVector();
+  for (let i = 0; i < 9; i++) {
+    direction.push_back(binaryImage.direction[i]);
+  }
+
+  const data = new wasmModule.Uint16Vector();
+  for (let i = 0; i < binaryImage.data.length; i++) {
+    data.push_back(binaryImage.data[i]);
+  }
+
+  generator.readImage(dims, spacing, origin, direction, data);
+  generator.generateModel();
+
+  // Get the points and cells
+  const points = generator.getPoints();
+
+  const ptsArray = new Float32Array(points.size());
+  for (let i = 0; i < points.size(); i++) {
+    ptsArray[i] = points.get(i);
+  }
+
+  // console.log("Points array:", ptsArray);
+
+  const cells = generator.getCells();
+
+  const cellArray = new Int32Array(cells.size());
+  for (let i = 0; i < cells.size(); i++) {
+    cellArray[i] = cells.get(i);
+  }
+  
+  // console.log("Cells array:", cellArray);
+
+  const polydata = vtk({
+    vtkClass: 'vtkPolyData',
+    points: {
+      vtkClass: 'vtkPoints',
+      dataType: 'Float32Array',
+      numberOfComponents: 3,
+      values: ptsArray,
+    },
+    polys: {
+      vtkClass: 'vtkCellArray',
+      dataType: 'Uint16Array',
+      values: cellArray,
+    },
   });
 
-  smoothFilter.setInputConnection(mc.getOutputPort());
-  smoothFilter.update();
+  console.log("Recreated vtkPolyData:", polydata);
   
-
-  return smoothFilter.getOutputData();
+  return polydata;
 }
 
 async function createNewITKImageFrom4DImage(itkImage, tp) {
@@ -85,7 +141,6 @@ async function getTimePointImages(itkImage) {
   }
 
   return tpImages;
-
 }
 
 async function GenerateLabelModelForOneTimePoint(itkImage, config) {
@@ -101,112 +156,29 @@ async function GenerateLabelModelForOneTimePoint(itkImage, config) {
 
   console.log("[GenerateLabelModel] uniqueValues", uniqueValues);
 
-  let models = [];
+  let labelModels = [];
 
   // for each unique label, generate a label model
   for (let i = 0; i < uniqueValues.length; i++) {
     const labelValue = uniqueValues[i];
 
     const itkBinaryImage = await GenerateLabelBinaryImage(itkImage, labelValue);
-    const vtkBinaryImage = convertItkToVtkImage(itkBinaryImage);
 
     // generate the label model and add to models with label as key
-    const labelModel = await GenerateModelForOneLabel(vtkBinaryImage, config);
-    models.push({ label: labelValue, model: labelModel });
+    const labelModel = await GenerateModelForOneLabel(itkBinaryImage, config);
+    labelModels.push({ label: labelValue, model: labelModel });
   }
 
-  return models;
+  return labelModels;
 }
 
 export default async function GenerateLabelModel(itkImage, config) {
   const tpImages = await getTimePointImages(itkImage);
   console.log("[GenerateLabelModel] tpImages", tpImages);
 
-  const wasmModule = await createGeneratorModule();
-  console.log("[GenerateLabelModel] wasmModule", wasmModule);
+  const tpModels = [];
 
-  const wasmModelGenerator = wasmModule.wasmModelGenerator;
-
-  const generator = new wasmModelGenerator();
-
-  const testTPImage = tpImages[0];
-
-  const binaryImage = await GenerateLabelBinaryImage(testTPImage, 1);
-
-  const dims = new wasmModule.Uint16Vector();
-  for (let i = 0; i < 3; i++) {
-    dims.push_back(binaryImage.size[i]);
-  } 
-
-  const spacing = new wasmModule.DoubleVector();
-  for (let i = 0; i < 3; i++) {
-    spacing.push_back(binaryImage.spacing[i]);
-  }
-
-  const origin = new wasmModule.DoubleVector();
-  for (let i = 0; i < 3; i++) {
-    origin.push_back(binaryImage.origin[i]);
-  }
-
-  const direction = new wasmModule.DoubleVector();
-  for (let i = 0; i < 9; i++) {
-    direction.push_back(binaryImage.direction[i]);
-  }
-
-  const data = new wasmModule.Uint16Vector();
-  for (let i = 0; i < itkImage.data.length; i++) {
-    data.push_back(binaryImage.data[i]);
-  }
-
-
-  generator.readImage(dims, spacing, origin, direction, data);
-  generator.generateModel();
-
-  // Get the points and cells
-  const points = generator.getPoints();
-
-  // Recreate vtkPolyData in JavaScript
-  // const vtkPoints = vtk.Common.Core.vtkPoints.newInstance();
-  // vtkPoints.setData(Float32Array.from(points), 3);
-
-  const ptsArray = new Float32Array(points.size());
-  for (let i = 0; i < points.size(); i++) {
-    ptsArray[i] = points.get(i);
-  }
-
-  console.log("Points array:", ptsArray);
-
-  const cells = generator.getCells();
-
-  const cellArray = new Int32Array(cells.size());
-  for (let i = 0; i < cells.size(); i++) {
-    cellArray[i] = cells.get(i);
-  }
-  
-  console.log("Cells array:", cellArray);
-
-  const polydata = vtk({
-    vtkClass: 'vtkPolyData',
-    points: {
-      vtkClass: 'vtkPoints',
-      dataType: 'Float32Array',
-      numberOfComponents: 3,
-      values: ptsArray,
-    },
-    polys: {
-      vtkClass: 'vtkCellArray',
-      dataType: 'Uint16Array',
-      values: cellArray,
-    },
-  });
-
-  console.log("Recreated vtkPolyData:", polydata);
-  
-
-  const tpModels = [polydata];
-
-  return tpModels;
-
+  // generate a label model for each time point
   for (let i = 0; i < tpImages.length; i++) {
     const tpImage = tpImages[i];
     const tpModel = await GenerateLabelModelForOneTimePoint(tpImage, config);
