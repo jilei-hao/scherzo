@@ -18,7 +18,7 @@ public:
 
   void readImage(const std::vector<uint16_t>& dims, 
     const std::vector<double>& spacing, const std::vector<double>& origin,
-    const std::vector<double>& direction, const std::vector<uint16_t>& buffer);
+    const std::vector<double>& direction, const std::vector<int16_t>& buffer);
 
   void readImageFromFile(std::string filename);
 
@@ -43,7 +43,6 @@ private:
   double m_DecimationTargetRate = 0.3;
   bool m_ApplyTransformForNifti = false;
   bool m_PrintDebugInfo = false;
-
 };
 
 #ifdef __EMSCRIPTEN__
@@ -65,6 +64,7 @@ EMSCRIPTEN_BINDINGS(wasmModelGeneratorJSBinding)
 
   emscripten::register_vector<double>("DoubleVector");
   emscripten::register_vector<uint16_t>("Uint16Vector");
+  emscripten::register_vector<int16_t>("Int16Vector");
   emscripten::register_vector<int>("IntVector");
 }
 

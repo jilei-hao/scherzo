@@ -59,7 +59,7 @@ static vtkSmartPointer<vtkMatrix4x4> constructNiftiSform(
   // Compute the scale matrix
   for (int i = 0; i < 3; ++i)
   {
-  m_scale->SetElement(i, i, v_spacing[i]);
+    m_scale->SetElement(i, i, v_spacing[i]);
   }
 
   // Compute the LPS to RAS matrix
@@ -71,31 +71,31 @@ static vtkSmartPointer<vtkMatrix4x4> constructNiftiSform(
   vtkMatrix4x4::Multiply4x4(m_lps_to_ras, m_scale, tempMatrix);
   for (int i = 0; i < 3; ++i)
   {
-  for (int j = 0; j < 3; ++j)
-  {
-    m_ras_matrix->SetElement(i, j, tempMatrix->GetElement(i, j) * m_dir->GetElement(i, j));
-  }
+    for (int j = 0; j < 3; ++j)
+    {
+      m_ras_matrix->SetElement(i, j, tempMatrix->GetElement(i, j) * m_dir->GetElement(i, j));
+    }
   }
 
   // Compute the RAS offset vector
   double v_ras_offset[3];
   for (int i = 0; i < 3; ++i)
   {
-  v_ras_offset[i] = 0;
-  for (int j = 0; j < 3; ++j)
-  {
-    v_ras_offset[i] += m_lps_to_ras->GetElement(i, j) * v_origin[j];
-  }
+    v_ras_offset[i] = 0;
+    for (int j = 0; j < 3; ++j)
+    {
+      v_ras_offset[i] += m_lps_to_ras->GetElement(i, j) * v_origin[j];
+    }
   }
 
   // Set the RAS matrix and offset in the sform matrix
   for (int i = 0; i < 3; ++i)
   {
-  for (int j = 0; j < 3; ++j)
-  {
-    m_sform->SetElement(i, j, m_ras_matrix->GetElement(i, j));
-  }
-  m_sform->SetElement(i, 3, v_ras_offset[i]);
+    for (int j = 0; j < 3; ++j)
+    {
+      m_sform->SetElement(i, j, m_ras_matrix->GetElement(i, j));
+    }
+    m_sform->SetElement(i, 3, v_ras_offset[i]);
   }
 
   return m_sform;
@@ -106,9 +106,13 @@ static vtkSmartPointer<vtkTransform> getVTKToNiftiTransform(vtkImageData* image)
   vtkNew<vtkTransform> vtk2niiTransform;
   double *spacing = image->GetSpacing();
   double *origin = image->GetOrigin();
-  vtkMatrix3x3 *direction = image->GetDirectionMatrix();
+  vtkSmartPointer<vtkMatrix3x3> direction = image->GetDirectionMatrix();
 
-  vtkMatrix4x4 *vox2nii = constructNiftiSform(direction, origin, spacing);
+  vtkSmartPointer<vtkMatrix4x4>vox2nii = constructNiftiSform(direction, origin, spacing);
+  
+  std::cout << "VOX to Nifti transform: " << std::endl;
+  vox2nii->Print(std::cout);
+
   vtkNew<vtkMatrix4x4> vtk2vox;
   vtk2vox->Identity();
   for (int i = 0; i < 3; ++i)
@@ -138,7 +142,7 @@ wasmModelGenerator::~wasmModelGenerator()
 
 void wasmModelGenerator::readImage(const std::vector<uint16_t>& dims, 
     const std::vector<double>& spacing, const std::vector<double>& origin,
-    const std::vector<double>& direction, const std::vector<uint16_t>& buffer)
+    const std::vector<double>& direction, const std::vector<int16_t>& buffer)
 {
   if (m_PrintDebugInfo)
   {
@@ -159,16 +163,24 @@ void wasmModelGenerator::readImage(const std::vector<uint16_t>& dims,
   vtkNew<vtkMatrix3x3> directionMatrix;
   directionMatrix->Identity();
   for (int i = 0; i < 3; ++i)
+  {
     for (int j = 0; j < 3; ++j)
     {
-      directionMatrix->SetElement(i, j, direction[i*3+j]);
+      directionMatrix->SetElement(i, j, direction[i * 3 + j]);
     }
+  }
+
+  if (m_PrintDebugInfo)
+  {
+    std::cout << "Direction matrix: " << std::endl;
+    directionMatrix->Print(std::cout);
+  }
 
   imageData->SetDirectionMatrix(directionMatrix);
 
   // Set scalar type and allocate scalars
-  imageData->AllocateScalars(VTK_UNSIGNED_SHORT, 1); // Single-component uint16_t data
-  uint16_t* imageDataPtr = static_cast<uint16_t*>(imageData->GetScalarPointer());
+  imageData->AllocateScalars(VTK_DOUBLE, 1); // Single-component uint16_t data
+  double *imageDataPtr = static_cast<double*>(imageData->GetScalarPointer());
   const size_t numPixels = dims[0] * dims[1] * dims[2];
 
   // copy data from buffer to imagedata
@@ -190,6 +202,25 @@ int wasmModelGenerator::generateModel()
     return 1;
   }
 
+  auto vtk2niiTransform = getVTKToNiftiTransform(m_ImageData);
+
+  if (m_ApplyTransformForNifti)
+  {
+    std::cout << "[wasmModelGenerator::generateModel] Setting Direction for Nifti Transform" << std::endl;
+  
+    // for the transform to work, set the direction matrix to identity
+    vtkNew<vtkMatrix3x3> directionMatrix;
+    directionMatrix->Identity();
+    m_ImageData->SetDirectionMatrix(directionMatrix);
+
+    if (m_PrintDebugInfo)
+    {
+      std::cout << "Image: " << std::endl;
+      m_ImageData->Print(std::cout);
+      
+    }
+  }
+
   vtkNew<vtkImageGaussianSmooth> fltSmooth;
   fltSmooth->SetInputData(m_ImageData);
   fltSmooth->SetStandardDeviations(m_GaussianSigma, m_GaussianSigma, m_GaussianSigma);
@@ -197,7 +228,7 @@ int wasmModelGenerator::generateModel()
 
   vtkNew<vtkMarchingCubes> fltMC;
   fltMC->SetInputConnection(fltSmooth->GetOutputPort());
-  fltMC->SetValue(0, 1.0);
+  fltMC->SetValue(0, 0);
 
   vtkNew<vtkTriangleFilter> fltTriangle;
   fltTriangle->SetInputConnection(fltMC->GetOutputPort());
@@ -223,7 +254,7 @@ int wasmModelGenerator::generateModel()
 
   vtkNew<vtkQuadricDecimation> fltDecimate;
   fltDecimate->SetInputConnection(fltSmoothing->GetOutputPort());
-  fltDecimate->SetTargetReduction(0.30);
+  fltDecimate->SetTargetReduction(m_DecimationTargetRate);
 
 
   vtkNew<vtkWindowedSincPolyDataFilter> fltSmoothing2;
@@ -244,12 +275,18 @@ int wasmModelGenerator::generateModel()
   if (m_ApplyTransformForNifti)
   {
     std::cout << "[wasmModelGenerator::generateModel] Applying transform for Nifti..." << std::endl;
-    vtkSmartPointer<vtkTransform> vtk2niiTransform = getVTKToNiftiTransform(m_ImageData);
+    
     vtkNew<vtkTransformPolyDataFilter> fltTransform;
     fltTransform->SetTransform(vtk2niiTransform);
     fltTransform->SetInputData(m_Model);
     fltTransform->Update();
     m_Model = fltTransform->GetOutput();
+
+    if (m_PrintDebugInfo)
+    {
+      std::cout << "Transform: " << std::endl;
+      vtk2niiTransform->Print(std::cout);
+    }
   }
 
   if (m_PrintDebugInfo)

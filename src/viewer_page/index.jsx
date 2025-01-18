@@ -13,6 +13,41 @@ import vtkGenericRenderWindow from "@kitware/vtk.js/Rendering/Misc/GenericRender
 import vtkActor from '@kitware/vtk.js/Rendering/Core/Actor';
 import vtkMapper from "@kitware/vtk.js/Rendering/Core/Mapper";
 import MainControlPanel from "./main_control_panel";
+import vtkXMLPolyDataWriter from '@kitware/vtk.js/IO/XML/XMLPolyDataWriter';
+import vtkAppendPolyData from "@kitware/vtk.js/Filters/General/AppendPolyData";
+
+// Function to download vtkPolyData
+function downloadPolyData(polyData, fileName = 'polydata.vtp') {
+  // Create an XML PolyData Writer
+  const writer = vtkXMLPolyDataWriter.newInstance();
+  
+  // Write the data to a string (XML format for .vtp)
+  const vtkString = writer.write(polyData);
+  
+  // Create a Blob with the data
+  const blob = new Blob([vtkString], { type: 'text/plain' });
+
+  // Create a temporary anchor element
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = fileName;
+
+  // Programmatically click the link to start the download
+  document.body.appendChild(link);
+  link.click();
+  
+  // Clean up the DOM
+  document.body.removeChild(link);
+}
+
+async function assemblePolyData(polydataList) {
+  const fltAppend = vtkAppendPolyData.newInstance();
+  polydataList.forEach((pd) => {
+    fltAppend.addInputData(pd);
+  });
+  fltAppend.update();
+  return fltAppend.getOutputData();
+}
 
 const getITKSNAPLabelColorTable = () => {
   return {
@@ -52,6 +87,14 @@ export default function ViewerPage(props) {
   const handleDownload = () => {
     const activeTPModel = props.models[activeTPRef.current - 1];
     console.log("[ViewerPage] handleDownload", activeTPModel);
+
+    const polydataList = activeTPModel.map((labelModel) => {
+      return labelModel.model;
+    });
+
+    assemblePolyData(polydataList).then((polyData) => {
+      downloadPolyData(polyData, `tp_${activeTPRef.current}.vtp`);
+    });
 
   };
 

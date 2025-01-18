@@ -14,7 +14,7 @@ async function GenerateLabelBinaryImage(itkImage, labelValue) {
   binaryImage.data = new itkImage.data.constructor(itkImage.data.length);
 
   for (let i = 0; i < itkImage.data.length; i++) {
-    binaryImage.data[i] = itkImage.data[i] == labelValue ? 1 : 0;
+    binaryImage.data[i] = itkImage.data[i] == labelValue ? 1 : -1;
   }
 
   return binaryImage;
@@ -28,11 +28,15 @@ async function GenerateModelForOneLabel(binaryImage, config) {
 
   const generator = new wasmModelGenerator();
   generator.setApplyTransformForNifti(true);
+  generator.setDecimationTargetRate(0);
+  generator.setSmoothingPassband(0.01);
+  generator.setGaussianSigma(0.8);
+  generator.setPrintDebugInfo(true);
 
   const dims = new wasmModule.Uint16Vector();
   for (let i = 0; i < 3; i++) {
     dims.push_back(binaryImage.size[i]);
-  } 
+  }
 
   const spacing = new wasmModule.DoubleVector();
   for (let i = 0; i < 3; i++) {
@@ -49,7 +53,7 @@ async function GenerateModelForOneLabel(binaryImage, config) {
     direction.push_back(binaryImage.direction[i]);
   }
 
-  const data = new wasmModule.Uint16Vector();
+  const data = new wasmModule.Int16Vector();
   for (let i = 0; i < binaryImage.data.length; i++) {
     data.push_back(binaryImage.data[i]);
   }
@@ -128,6 +132,7 @@ async function getTimePointImages(itkImage) {
 
   // if itkImage is 3D, return the image
   if (itkImage.size.length === 3) {
+    console.log("[getTimePointImages] 3D Image Detected");
     tpImages.push(itkImage);
     return tpImages;
   }
