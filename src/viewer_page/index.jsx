@@ -14,6 +14,7 @@ import vtkActor from '@kitware/vtk.js/Rendering/Core/Actor';
 import vtkMapper from "@kitware/vtk.js/Rendering/Core/Mapper";
 import MainControlPanel from "./main_control_panel";
 import vtkXMLPolyDataWriter from '@kitware/vtk.js/IO/XML/XMLPolyDataWriter';
+
 import vtkAppendPolyData from "@kitware/vtk.js/Filters/General/AppendPolyData";
 
 // Function to download vtkPolyData

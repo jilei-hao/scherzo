@@ -53,12 +53,29 @@ async function GenerateModelForOneLabel(binaryImage, config) {
     direction.push_back(binaryImage.direction[i]);
   }
 
-  const data = new wasmModule.Int16Vector();
-  for (let i = 0; i < binaryImage.data.length; i++) {
-    data.push_back(binaryImage.data[i]);
-  }
+  // write the data to the allocated memory
+  console.log("binaryImage.data", binaryImage.data);
+  const dataArray = new Int16Array(binaryImage.data);
+  console.log("dataArray", dataArray);
 
-  generator.readImage(dims, spacing, origin, direction, data);
+  const numBytes = dataArray.length * dataArray.BYTES_PER_ELEMENT;
+  const ptr = wasmModule._malloc(numBytes);
+
+  wasmModule.HEAP16.set(dataArray, ptr / dataArray.BYTES_PER_ELEMENT);
+
+  console.log("ptr", ptr);
+
+  wasmModule._processImage(ptr, dataArray.length);
+
+  // generator.readImage(dims, spacing, origin, direction, ptr, dataArray.length);
+
+  wasmModule._free(ptr);
+
+
+  return;
+
+
+  generator.readImage(dims, spacing, origin, direction, null, 0);
   generator.generateModel();
 
   // Get the points and cells

@@ -19,6 +19,7 @@
 #include <vtkTransformPolyDataFilter.h>
 
 #include "generator.h"
+#include "generate_mesh.hxx"
 
 
 // ============================================================================
@@ -142,7 +143,7 @@ wasmModelGenerator::~wasmModelGenerator()
 
 void wasmModelGenerator::readImage(const std::vector<uint16_t>& dims, 
     const std::vector<double>& spacing, const std::vector<double>& origin,
-    const std::vector<double>& direction, const std::vector<int16_t>& buffer)
+    const std::vector<double>& direction, int16_t* buffer, size_t bufferSize)
 {
   if (m_PrintDebugInfo)
   {
@@ -163,12 +164,10 @@ void wasmModelGenerator::readImage(const std::vector<uint16_t>& dims,
   vtkNew<vtkMatrix3x3> directionMatrix;
   directionMatrix->Identity();
   for (int i = 0; i < 3; ++i)
-  {
     for (int j = 0; j < 3; ++j)
     {
       directionMatrix->SetElement(i, j, direction[i * 3 + j]);
     }
-  }
 
   if (m_PrintDebugInfo)
   {
@@ -179,14 +178,12 @@ void wasmModelGenerator::readImage(const std::vector<uint16_t>& dims,
   imageData->SetDirectionMatrix(directionMatrix);
 
   // Set scalar type and allocate scalars
-  imageData->AllocateScalars(VTK_DOUBLE, 1); // Single-component uint16_t data
+  imageData->AllocateScalars(VTK_DOUBLE, 1); // Single-component double data
   double *imageDataPtr = static_cast<double*>(imageData->GetScalarPointer());
-  const size_t numPixels = dims[0] * dims[1] * dims[2];
 
-  // copy data from buffer to imagedata
-  for (size_t i = 0; i < numPixels; ++i)
+  for (size_t i = 0; i < bufferSize; ++i)
   {
-    imageDataPtr[i] = buffer[i];
+    imageDataPtr[i] = static_cast<double>(buffer[i]);
   }
 
   m_ImageData = imageData;
