@@ -65,7 +65,11 @@ async function GenerateModelForOneLabel(binaryImage, config) {
 
   console.log("ptr", ptr);
 
-  wasmModule._processImage(ptr, dataArray.length);
+  generator.readImage(dims, spacing, origin, direction, null, 0);
+
+  generator.setBuffer(ptr, dataArray.length);
+
+  // wasmModule._processImage(ptr, dataArray.length);
 
   // generator.readImage(dims, spacing, origin, direction, ptr, dataArray.length);
 
@@ -75,7 +79,7 @@ async function GenerateModelForOneLabel(binaryImage, config) {
   return;
 
 
-  generator.readImage(dims, spacing, origin, direction, null, 0);
+  
   generator.generateModel();
 
   // Get the points and cells

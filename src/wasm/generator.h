@@ -1,6 +1,8 @@
 #include <iostream>
 #include <vector>
 #include <ctype.h>
+#include <stdint.h>
+#include <cstddef>
 
 #include <vtkSmartPointer.h>
 #include <vtkImageData.h>
@@ -18,7 +20,9 @@ public:
 
   void readImage(const std::vector<uint16_t>& dims, 
     const std::vector<double>& spacing, const std::vector<double>& origin,
-    const std::vector<double>& direction, int16_t* buffer, size_t bufferSize);
+    const std::vector<double>& direction);
+
+  void setBuffer(int16_t* buffer, size_t bufferSize);
 
   void readImageFromFile(std::string filename);
 
@@ -51,7 +55,8 @@ EMSCRIPTEN_BINDINGS(wasmModelGeneratorJSBinding)
 {
   emscripten::class_<wasmModelGenerator>("wasmModelGenerator")
     .constructor<>()
-    .function("readImage", &wasmModelGenerator::readImage, emscripten::allow_raw_pointers())
+    .function("readImage", &wasmModelGenerator::readImage)
+    .function("setBuffer", &wasmModelGenerator::setBuffer, emscripten::allow_raw_pointers())
     .function("generateModel", &wasmModelGenerator::generateModel)
     .function("getPoints", &wasmModelGenerator::getPoints)
     .function("getCells", &wasmModelGenerator::getCells)

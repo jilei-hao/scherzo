@@ -143,7 +143,7 @@ wasmModelGenerator::~wasmModelGenerator()
 
 void wasmModelGenerator::readImage(const std::vector<uint16_t>& dims, 
     const std::vector<double>& spacing, const std::vector<double>& origin,
-    const std::vector<double>& direction, int16_t* buffer, size_t bufferSize)
+    const std::vector<double>& direction)
 {
   if (m_PrintDebugInfo)
   {
@@ -177,16 +177,24 @@ void wasmModelGenerator::readImage(const std::vector<uint16_t>& dims,
 
   imageData->SetDirectionMatrix(directionMatrix);
 
-  // Set scalar type and allocate scalars
-  imageData->AllocateScalars(VTK_DOUBLE, 1); // Single-component double data
-  double *imageDataPtr = static_cast<double*>(imageData->GetScalarPointer());
+  m_ImageData = imageData;
+}
 
-  for (size_t i = 0; i < bufferSize; ++i)
+void wasmModelGenerator::setBuffer(int16_t* buffer, size_t bufferSize)
+{
+  if (m_PrintDebugInfo)
+  {
+    std::cout << "Setting buffer... size = " << bufferSize << std::endl;
+  }
+
+  // Set scalar type and allocate scalars
+  m_ImageData->AllocateScalars(VTK_DOUBLE, 1); // Single-component double data
+  double *imageDataPtr = static_cast<double*>(m_ImageData->GetScalarPointer());
+
+  for (size_t i = 0; i < bufferSize; ++i) 
   {
     imageDataPtr[i] = static_cast<double>(buffer[i]);
   }
-
-  m_ImageData = imageData;
 }
 
 
