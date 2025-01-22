@@ -19,7 +19,6 @@
 #include <vtkTransformPolyDataFilter.h>
 
 #include "generator.h"
-#include "generate_mesh.hxx"
 
 
 // ============================================================================

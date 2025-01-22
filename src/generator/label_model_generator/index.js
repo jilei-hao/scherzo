@@ -3,6 +3,7 @@ import vtkImageMarchingCubes from '@kitware/vtk.js/Filters/General/ImageMarching
 import vtkWindowedSincPolyDataFilter from '@kitware/vtk.js/Filters/General/WindowedSincPolyDataFilter';
 import { Image } from 'itk-wasm';
 import createGeneratorModule from './Generator';
+import { allocateMemoryForArray } from '../wasm_helpers';
 import vtk from '@kitware/vtk.js/vtk';
 
 async function GenerateLabelBinaryImage(itkImage, labelValue) {
@@ -26,58 +27,81 @@ async function GenerateModelForOneLabel(binaryImage, config) {
 
   const wasmModelGenerator = wasmModule.wasmModelGenerator;
 
-  const generator = new wasmModelGenerator();
-  generator.setApplyTransformForNifti(true);
-  generator.setDecimationTargetRate(0);
-  generator.setSmoothingPassband(0.01);
-  generator.setGaussianSigma(0.8);
-  generator.setPrintDebugInfo(true);
+  // const generator = new wasmModelGenerator();
+  // generator.setApplyTransformForNifti(true);
+  // generator.setDecimationTargetRate(0);
+  // generator.setSmoothingPassband(0.01);
+  // generator.setGaussianSigma(0.8);
+  // generator.setPrintDebugInfo(true);
 
-  const dims = new wasmModule.Uint16Vector();
-  for (let i = 0; i < 3; i++) {
-    dims.push_back(binaryImage.size[i]);
-  }
+  // const dims = new wasmModule.Uint16Vector();
+  // for (let i = 0; i < 3; i++) {
+  //   dims.push_back(binaryImage.size[i]);
+  // }
 
-  const spacing = new wasmModule.DoubleVector();
-  for (let i = 0; i < 3; i++) {
-    spacing.push_back(binaryImage.spacing[i]);
-  }
+  // const spacing = new wasmModule.DoubleVector();
+  // for (let i = 0; i < 3; i++) {
+  //   spacing.push_back(binaryImage.spacing[i]);
+  // }
 
-  const origin = new wasmModule.DoubleVector();
-  for (let i = 0; i < 3; i++) {
-    origin.push_back(binaryImage.origin[i]);
-  }
+  // const origin = new wasmModule.DoubleVector();
+  // for (let i = 0; i < 3; i++) {
+  //   origin.push_back(binaryImage.origin[i]);
+  // }
 
-  const direction = new wasmModule.DoubleVector();
-  for (let i = 0; i < 9; i++) {
-    direction.push_back(binaryImage.direction[i]);
-  }
+  // const direction = new wasmModule.DoubleVector();
+  // for (let i = 0; i < 9; i++) {
+  //   direction.push_back(binaryImage.direction[i]);
+  // }
+
+  // generator.readImage(dims, spacing, origin, direction, null, 0);
+
+  // generator.setBuffer(ptr, dataArray.length);
+
+  const pGenerator = wasmModule._createModelGenerator();
+  wasmModule._setPrintDebugInfo(pGenerator, true);
+
+  // dimension array
+  const dims = new Int16Array([binaryImage.size[0], binaryImage.size[1], binaryImage.size[2]]);
+  const pDims = await allocateMemoryForArray(wasmModule, dims);
+
+  // spacing
+  const spacing = new Float64Array([binaryImage.spacing[0], binaryImage.spacing[1], binaryImage.spacing[2]]);
+  const pSpacing = await allocateMemoryForArray(wasmModule, spacing);
+
+  // origin
+  const origin = new Float64Array([binaryImage.origin[0], binaryImage.origin[1], binaryImage.origin[2]]);
+  const pOrigin = await allocateMemoryForArray(wasmModule, origin);
+
+  // direction
+  const direction = new Float64Array([binaryImage.direction[0], binaryImage.direction[1], binaryImage.direction[2],
+    binaryImage.direction[3], binaryImage.direction[4], binaryImage.direction[5],
+    binaryImage.direction[6], binaryImage.direction[7], binaryImage.direction[8]]);
+  const pDirection = await allocateMemoryForArray(wasmModule, direction);
+
+  console.log("--dims: ", pDims);
+  console.log("--spacing: ", pSpacing);
+  console.log("--origin: ", pOrigin);
+  console.log("--direction: ", pDirection);
+
 
   // write the data to the allocated memory
   console.log("binaryImage.data", binaryImage.data);
   const dataArray = new Int16Array(binaryImage.data);
+  const bufferSize = dataArray.length;
   console.log("dataArray", dataArray);
 
-  const numBytes = dataArray.length * dataArray.BYTES_PER_ELEMENT;
-  const ptr = wasmModule._malloc(numBytes);
+  const numBytes = bufferSize * dataArray.BYTES_PER_ELEMENT;
+  const pBuffer = wasmModule._malloc(numBytes);
 
-  wasmModule.HEAP16.set(dataArray, ptr / dataArray.BYTES_PER_ELEMENT);
+  wasmModule.HEAP16.set(dataArray, pBuffer / dataArray.BYTES_PER_ELEMENT);
+  wasmModule._setImage(pGenerator, pBuffer, bufferSize, pDims, pSpacing, pOrigin, pDirection);
 
-  console.log("ptr", ptr);
 
-  generator.readImage(dims, spacing, origin, direction, null, 0);
-
-  generator.setBuffer(ptr, dataArray.length);
-
-  // wasmModule._processImage(ptr, dataArray.length);
-
-  // generator.readImage(dims, spacing, origin, direction, ptr, dataArray.length);
-
-  wasmModule._free(ptr);
+  wasmModule._free(pBuffer);
 
 
   return;
-
 
   
   generator.generateModel();

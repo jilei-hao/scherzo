@@ -28,7 +28,7 @@ endif ()
 # Compile code
 # -----------------------------------------------------------------------------
 
-add_executable(Generator generator.h generator.cxx generate_mesh.hxx)
+add_executable(Generator generator.h generator.cxx generate_mesh.cxx)
 target_link_libraries(Generator PRIVATE ${VTK_LIBRARIES})
 
 # -----------------------------------------------------------------------------
