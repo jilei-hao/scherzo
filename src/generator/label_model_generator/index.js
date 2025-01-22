@@ -25,8 +25,6 @@ async function GenerateModelForOneLabel(binaryImage, config) {
   const wasmModule = await createGeneratorModule();
   console.log("[GenerateLabelModel] wasmModule", wasmModule);
 
-  const wasmModelGenerator = wasmModule.wasmModelGenerator;
-
   // const generator = new wasmModelGenerator();
   // generator.setApplyTransformForNifti(true);
   // generator.setDecimationTargetRate(0);
@@ -60,6 +58,10 @@ async function GenerateModelForOneLabel(binaryImage, config) {
 
   const pGenerator = wasmModule._createModelGenerator();
   wasmModule._setPrintDebugInfo(pGenerator, true);
+  wasmModule._setGaussianSigma(pGenerator, 0.8);
+  wasmModule._setSmoothingPassband(pGenerator, 0.01);
+  wasmModule._setDecimationTargetRate(pGenerator, 0.3);
+
 
   // dimension array
   const dims = new Int16Array([binaryImage.size[0], binaryImage.size[1], binaryImage.size[2]]);
@@ -79,27 +81,19 @@ async function GenerateModelForOneLabel(binaryImage, config) {
     binaryImage.direction[6], binaryImage.direction[7], binaryImage.direction[8]]);
   const pDirection = await allocateMemoryForArray(wasmModule, direction);
 
-  console.log("--dims: ", pDims);
-  console.log("--spacing: ", pSpacing);
-  console.log("--origin: ", pOrigin);
-  console.log("--direction: ", pDirection);
-
 
   // write the data to the allocated memory
   console.log("binaryImage.data", binaryImage.data);
   const dataArray = new Int16Array(binaryImage.data);
-  const bufferSize = dataArray.length;
-  console.log("dataArray", dataArray);
-
-  const numBytes = bufferSize * dataArray.BYTES_PER_ELEMENT;
-  const pBuffer = wasmModule._malloc(numBytes);
-
-  wasmModule.HEAP16.set(dataArray, pBuffer / dataArray.BYTES_PER_ELEMENT);
-  wasmModule._setImage(pGenerator, pBuffer, bufferSize, pDims, pSpacing, pOrigin, pDirection);
+  const pBuffer = await allocateMemoryForArray(wasmModule, dataArray);
+  wasmModule._setImage(pGenerator, pBuffer, dataArray.length, pDims, pSpacing, pOrigin, pDirection);
 
 
   wasmModule._free(pBuffer);
-
+  wasmModule._free(pDims);
+  wasmModule._free(pSpacing);
+  wasmModule._free(pOrigin);
+  wasmModule._free(pDirection);
 
   return;
 
