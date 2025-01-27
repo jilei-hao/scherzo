@@ -25,42 +25,11 @@ async function GenerateModelForOneLabel(binaryImage, config) {
   const wasmModule = await createGeneratorModule();
   console.log("[GenerateLabelModel] wasmModule", wasmModule);
 
-  // const generator = new wasmModelGenerator();
-  // generator.setApplyTransformForNifti(true);
-  // generator.setDecimationTargetRate(0);
-  // generator.setSmoothingPassband(0.01);
-  // generator.setGaussianSigma(0.8);
-  // generator.setPrintDebugInfo(true);
-
-  // const dims = new wasmModule.Uint16Vector();
-  // for (let i = 0; i < 3; i++) {
-  //   dims.push_back(binaryImage.size[i]);
-  // }
-
-  // const spacing = new wasmModule.DoubleVector();
-  // for (let i = 0; i < 3; i++) {
-  //   spacing.push_back(binaryImage.spacing[i]);
-  // }
-
-  // const origin = new wasmModule.DoubleVector();
-  // for (let i = 0; i < 3; i++) {
-  //   origin.push_back(binaryImage.origin[i]);
-  // }
-
-  // const direction = new wasmModule.DoubleVector();
-  // for (let i = 0; i < 9; i++) {
-  //   direction.push_back(binaryImage.direction[i]);
-  // }
-
-  // generator.readImage(dims, spacing, origin, direction, null, 0);
-
-  // generator.setBuffer(ptr, dataArray.length);
-
   const pGenerator = wasmModule._createModelGenerator();
-  wasmModule._setPrintDebugInfo(pGenerator, true);
+  wasmModule._setPrintDebugInfo(pGenerator, false);
   wasmModule._setGaussianSigma(pGenerator, 0.8);
-  wasmModule._setSmoothingPassband(pGenerator, 0.01);
-  wasmModule._setDecimationTargetRate(pGenerator, 0.3);
+  wasmModule._setMeshSmoothingPassband(pGenerator, 0.01);
+  wasmModule._setMeshDecimationTargetReduction(pGenerator, 0.7);
 
 
   // dimension array
@@ -87,37 +56,23 @@ async function GenerateModelForOneLabel(binaryImage, config) {
   const dataArray = new Int16Array(binaryImage.data);
   const pBuffer = await allocateMemoryForArray(wasmModule, dataArray);
   wasmModule._setImage(pGenerator, pBuffer, dataArray.length, pDims, pSpacing, pOrigin, pDirection);
+  wasmModule._generateModel(pGenerator);
+  const pointArraySize = wasmModule._getPointArraySize(pGenerator);
+  const cellArraySize = wasmModule._getCellArraySize(pGenerator);
 
+  // console.log("nPoints", pointArraySize);
+  // console.log("nCells", cellArraySize);
 
-  wasmModule._free(pBuffer);
-  wasmModule._free(pDims);
-  wasmModule._free(pSpacing);
-  wasmModule._free(pOrigin);
-  wasmModule._free(pDirection);
+  // get the model
+  const pPoints = wasmModule._getPoints(pGenerator);
+  const points = new Float32Array(wasmModule.HEAPF32.buffer, pPoints, pointArraySize);
+  const pCells = wasmModule._getCells(pGenerator);
+  const cells = new Int32Array(wasmModule.HEAP32.buffer, pCells, cellArraySize);
 
-  return;
+  // copy the points and cells array
+  const pointsCopy = new Float32Array(points);
+  const cellsCopy = new Int32Array(cells);
 
-  
-  generator.generateModel();
-
-  // Get the points and cells
-  const points = generator.getPoints();
-
-  const ptsArray = new Float32Array(points.size());
-  for (let i = 0; i < points.size(); i++) {
-    ptsArray[i] = points.get(i);
-  }
-
-  // console.log("Points array:", ptsArray);
-
-  const cells = generator.getCells();
-
-  const cellArray = new Int32Array(cells.size());
-  for (let i = 0; i < cells.size(); i++) {
-    cellArray[i] = cells.get(i);
-  }
-  
-  // console.log("Cells array:", cellArray);
 
   const polydata = vtk({
     vtkClass: 'vtkPolyData',
@@ -125,17 +80,26 @@ async function GenerateModelForOneLabel(binaryImage, config) {
       vtkClass: 'vtkPoints',
       dataType: 'Float32Array',
       numberOfComponents: 3,
-      values: ptsArray,
+      values: pointsCopy,
     },
     polys: {
       vtkClass: 'vtkCellArray',
-      dataType: 'Uint16Array',
-      values: cellArray,
+      dataType: 'Int32Array',
+      values: cellsCopy,
     },
   });
 
-  console.log("Recreated vtkPolyData:", polydata);
-  
+  wasmModule._free(pBuffer);
+  wasmModule._free(pDims);
+  wasmModule._free(pSpacing);
+  wasmModule._free(pOrigin);
+  wasmModule._free(pDirection);
+  wasmModule._free(pPoints);
+  wasmModule._free(pCells);
+
+  wasmModule._free(pGenerator);
+
+
   return polydata;
 }
 
@@ -210,6 +174,7 @@ async function GenerateLabelModelForOneTimePoint(itkImage, config) {
 
     // generate the label model and add to models with label as key
     const labelModel = await GenerateModelForOneLabel(itkBinaryImage, config);
+    itkBinaryImage.data = null;
     labelModels.push({ label: labelValue, model: labelModel });
   }
 
@@ -227,6 +192,11 @@ export default async function GenerateLabelModel(itkImage, config) {
     const tpImage = tpImages[i];
     const tpModel = await GenerateLabelModelForOneTimePoint(tpImage, config);
     tpModels.push(tpModel);
+  }
+
+  // clean up tpImages
+  for (let i = 0; i < tpImages.length; i++) {
+    tpImages[i].data = null;
   }
 
   return tpModels;

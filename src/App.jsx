@@ -18,14 +18,6 @@ function App() {
 
   const handleFileChange = async (event) => {
     setFiles(event.target.files);
-  
-    // console.log("start reading image", files);
-  
-    // const image = await readImageFromFile(Array.from(files));
-  
-    // console.log("image", image);
-
-    // setImage(image);
   };
 
   const handleModelGeneration = async () => {

@@ -3,8 +3,6 @@ async function allocateMemoryForArray(wasmModule, inputArray) {
   const numBytes = inputArray.length * inputArray.BYTES_PER_ELEMENT;
   const pBuffer = wasmModule._malloc(numBytes);
 
-  console.log("--pBuffer", pBuffer);
-
   if (inputArray instanceof Int8Array) {
     wasmModule.HEAP8.set(inputArray, pBuffer);
   } else if (inputArray instanceof Uint8Array) {
