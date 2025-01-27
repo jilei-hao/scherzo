@@ -5,6 +5,6 @@
 
 ### Run the application on localhost
 
-- Clone/Dowanload project to a local folder
+- Clone/download project to a local folder
 - Run `npm install`
 - Run `npm run dev`
