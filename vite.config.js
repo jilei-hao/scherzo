@@ -4,7 +4,7 @@ import path from 'path';
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/', // for GitHub Pages deployment
+  base: '/scherzo/', // for GitHub Pages deployment
   plugins: [react()],
   server: {
     port: 3001,
