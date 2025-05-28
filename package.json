@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview --host",
-    "deploy": "gh-pages -d dist -b master"
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "@itk-wasm/downsample": "^1.4.3",
