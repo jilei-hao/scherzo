@@ -27,6 +27,8 @@ function App() {
     console.log("start reading image", files);
     setLoading(true);
 
+    const startTime = performance.now();
+
     const localImage = await readImageFromFile(Array.from(files));
   
     console.log("image", localImage);
@@ -41,6 +43,10 @@ function App() {
     }
 
     const models = await GenerateLabelModel(localImage, {});
+
+    const endTime = performance.now();
+    const timeElapsed = (endTime - startTime) / 1000;
+    console.log(`Model generation took ${timeElapsed.toFixed(2)} seconds.`);
 
     console.log("[handleModelGeneration] models", models);
 
