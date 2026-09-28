@@ -9,7 +9,10 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview --host",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@itk-wasm/downsample": "^1.4.3",
@@ -21,6 +24,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
+    "@playwright/test": "^1.56.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
@@ -31,7 +35,8 @@
     "gh-pages": "^6.3.0",
     "globals": "^15.12.0",
     "patch-package": "^8.0.0",
-    "vite": "^6.0.1"
+    "vite": "^6.0.1",
+    "vitest": "^3.2.7"
   },
   "homepage": "https://jilei-hao.github.io/scherzo/"
 }

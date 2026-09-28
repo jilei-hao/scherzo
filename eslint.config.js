@@ -51,4 +51,11 @@ export default [
       globals: { ...globals.node, ...globals.browser },
     },
   },
+  {
+    files: ['tests/**/*.js'],
+    rules: {
+      // Playwright fixtures call `use()`, which this rule mistakes for React's `use` hook
+      'react-hooks/rules-of-hooks': 'off',
+    },
+  },
 ]
