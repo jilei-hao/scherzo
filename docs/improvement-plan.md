@@ -115,13 +115,27 @@ turns the masked leak (P0-7) into a real one, and a worker needs a rebuild with 
 
 ### Phase 0 — Stop the crashes, add a safety net (no WASM rebuild)
 
-- [ ] Lint signal: ignore generated files, disable `react/prop-types`, fix real errors.
-- [ ] Vitest + unit tests for the pure image/label helpers.
-- [ ] Fix P0 #1 (dtype-independent binarization), #2 (JS-side empty-mesh guard), #3 (error
+- [x] Lint signal: ignore generated files, disable `react/prop-types`, fix real errors.
+      181 problems → 0 errors; 4 `exhaustive-deps` warnings remain (stale closures, Phase 3).
+- [x] Vitest + unit tests for the pure image/label helpers (`src/generator/image_helper`).
+- [x] Fix P0 #1 (dtype-independent binarization), #2 (JS-side empty-mesh guard), #3 (error
       handling + disabled button), #4 (label union + actors keyed by label), #5 (no input
       mutation), #6 (copy WASM output immediately).
-- [ ] Playwright e2e smoke tests running the real WASM (hermetic: no CDN).
-- [ ] Minimal CI: lint, unit tests, build, e2e.
+- [x] Playwright e2e tests running the real WASM (hermetic: pipelines served from
+      `node_modules`). Each was checked against the pre-fix code: the bug tests fail there,
+      and the int8/uint16/int16/float32 and physical-space tests pass (they guard behaviour
+      that was already correct).
+- [x] Minimal CI: lint, unit tests, build, e2e (`.github/workflows/ci.yml`).
+
+Notes:
+
+- Also done while rewriting the same code: the JS half of P0-7 (`_destroyModelGenerator`
+  instead of `_free`, `Uint16Array` dims) and honouring the `config` argument (defaults
+  unchanged). The C++ half of P0-7 still needs Phase 1.
+- Behaviour changes: an all-background image now shows an error instead of an empty viewer;
+  exiting the viewer clears the file selection.
+- Vitest is pinned to 3.2: Vitest 5 needs Vite ≥ 6.4 and Vitest 4 trips an npm 10 resolver
+  bug. Revisit when Vite is upgraded.
 
 ### Phase 1 — WASM build and boundary (needs emsdk + VTK toolchain)
 
