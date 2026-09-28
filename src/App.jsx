@@ -25,7 +25,6 @@ import { GenerateLabelModel } from './generator'
 
 
 function App() {
-  const [count, setCount] = useState(0);
   const [image, setImage] = useState(null);
   const [models, setModels] = useState(null);
   const [appStatus, setAppStatus] = useState("welcome"); // welcome, viewing

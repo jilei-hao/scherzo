@@ -15,9 +15,6 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-import { convertItkToVtkImage } from '@kitware/vtk.js/Common/DataModel/ITKHelper'
-import vtkImageMarchingCubes from '@kitware/vtk.js/Filters/General/ImageMarchingCubes';
-import vtkWindowedSincPolyDataFilter from '@kitware/vtk.js/Filters/General/WindowedSincPolyDataFilter';
 import { Image } from 'itk-wasm';
 import createGeneratorModule from './Generator';
 import { allocateMemoryForArray } from '../wasm_helpers';

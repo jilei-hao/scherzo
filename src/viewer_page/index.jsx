@@ -14,17 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-import React, {useRef, useEffect, useState} from "react";
+import {useRef, useEffect, useState} from "react";
 import styles from "./styles.module.css";
 
 // Load the rendering pieces we want to use (for both WebGL and WebGPU)
 import '@kitware/vtk.js/Rendering/Profiles/Geometry';
 import '@kitware/vtk.js/Rendering/Misc/RenderingAPIs';
 
-import vtkRenderWindow from '@kitware/vtk.js/Rendering/Core/RenderWindow';
-import vtkRenderWindowInteractor from '@kitware/vtk.js/Rendering/Core/RenderWindowInteractor';
-import vtkRenderer from '@kitware/vtk.js/Rendering/Core/Renderer';
-import vtkInteractorStyleTrackballCamera from '@kitware/vtk.js/Interaction/Style/InteractorStyleTrackballCamera';
 import vtkGenericRenderWindow from "@kitware/vtk.js/Rendering/Misc/GenericRenderWindow";
 import vtkActor from '@kitware/vtk.js/Rendering/Core/Actor';
 import vtkMapper from "@kitware/vtk.js/Rendering/Core/Mapper";
