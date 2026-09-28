@@ -27,22 +27,13 @@ function sanitizeFile(file) {
   return new File([file], sanitizeFileName(file.name));
 }
 
+// Reads a single image file. Multi-file DICOM series are not supported yet
+// (itk-viewer uses readImageDicomFileSeries for those).
 export default async function readImageFromFile (files) {
-  const cleanFiles = files.map(sanitizeFile);
-
-  if (cleanFiles.length !== 1) {
-    return;
-  }
-    
-  if (cleanFiles.length === 1) {
-    const { image } = await readImage(cleanFiles[0]);
-    return image;
+  if (files.length !== 1) {
+    throw new Error(`Select exactly one image file (got ${files.length}).`);
   }
 
-  // const { outputImage } = await readImageDicomFileSeries({
-  //   inputImages: cleanFiles,
-  //   singleSortedSeries: false,
-  // });
-
-  return outputImage;
+  const { image } = await readImage(sanitizeFile(files[0]));
+  return image;
 };

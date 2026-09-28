@@ -25,55 +25,48 @@ import { GenerateLabelModel } from './generator'
 
 
 function App() {
-  const [image, setImage] = useState(null);
   const [models, setModels] = useState(null);
   const [appStatus, setAppStatus] = useState("welcome"); // welcome, viewing
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [files, setFiles] = useState(null);
 
-  const handleFileChange = async (event) => {
+  const handleFileChange = (event) => {
     setFiles(event.target.files);
+    setError(null);
   };
 
   const handleModelGeneration = async () => {
-    if (!files)
+    if (!files || files.length === 0 || loading)
       return;
-    
-    console.log("start reading image", files);
+
     setLoading(true);
+    setError(null);
 
-    const startTime = performance.now();
+    try {
+      const startTime = performance.now();
 
-    const localImage = await readImageFromFile(Array.from(files));
-  
-    console.log("image", localImage);
+      // the source image is not kept in state: the viewer only needs the models
+      const image = await readImageFromFile(Array.from(files));
+      const models = await GenerateLabelModel(image, {});
 
-    setImage(localImage);
-  
-    if (!localImage) {
-      console.log("[handleModelGeneration] no image!");
-      return;
-    } else {
-      console.log("[handleModelGeneration] image found!");
+      const timeElapsed = (performance.now() - startTime) / 1000;
+      console.log(`Model generation took ${timeElapsed.toFixed(2)} seconds.`);
+
+      setModels(models);
+      setAppStatus("viewing");
+    } catch (e) {
+      console.error("[handleModelGeneration]", e);
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
     }
-
-    const models = await GenerateLabelModel(localImage, {});
-
-    const endTime = performance.now();
-    const timeElapsed = (endTime - startTime) / 1000;
-    console.log(`Model generation took ${timeElapsed.toFixed(2)} seconds.`);
-
-    console.log("[handleModelGeneration] models", models);
-
-    setModels(models);
-    setLoading(false);
-    setAppStatus("viewing");
   }
 
   const handleExit = () => {
     setAppStatus("welcome");
-    setImage(null);
     setModels(null);
+    setFiles(null); // the file input is empty again when the welcome page remounts
   }
 
   return (
@@ -83,11 +76,12 @@ function App() {
         onFileChange={handleFileChange}
         onGenerateClicked={handleModelGeneration}
         loading={loading}
+        canGenerate={!!files && files.length > 0}
+        error={error}
       />
     )}
-    {(appStatus === "loading" || appStatus === "viewing") && (
+    {appStatus === "viewing" && (
       <ViewerPage
-        image={image}
         models={models}
         onExit={handleExit}
       />
