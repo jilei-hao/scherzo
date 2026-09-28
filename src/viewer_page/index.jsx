@@ -14,17 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-import React, {useRef, useEffect, useState} from "react";
+import {useRef, useEffect, useState} from "react";
 import styles from "./styles.module.css";
 
 // Load the rendering pieces we want to use (for both WebGL and WebGPU)
 import '@kitware/vtk.js/Rendering/Profiles/Geometry';
 import '@kitware/vtk.js/Rendering/Misc/RenderingAPIs';
 
-import vtkRenderWindow from '@kitware/vtk.js/Rendering/Core/RenderWindow';
-import vtkRenderWindowInteractor from '@kitware/vtk.js/Rendering/Core/RenderWindowInteractor';
-import vtkRenderer from '@kitware/vtk.js/Rendering/Core/Renderer';
-import vtkInteractorStyleTrackballCamera from '@kitware/vtk.js/Interaction/Style/InteractorStyleTrackballCamera';
 import vtkGenericRenderWindow from "@kitware/vtk.js/Rendering/Misc/GenericRenderWindow";
 import vtkActor from '@kitware/vtk.js/Rendering/Core/Actor';
 import vtkMapper from "@kitware/vtk.js/Rendering/Core/Mapper";
@@ -87,12 +83,26 @@ const getITKSNAPLabelColorTable = () => {
   }
 };
 
+// Points each label's actor at its model for one time point. A label can be
+// missing (null model) at some time points; its actor is hidden there.
+function showTimePointModels(actorsByLabel, tpModel) {
+  for (const { label, model } of tpModel) {
+    const actor = actorsByLabel.get(label);
+    if (!actor)
+      continue;
+
+    if (model)
+      actor.getMapper().setInputData(model);
+    actor.setVisibility(!!model);
+  }
+}
+
 export default function ViewerPage(props) {
   const rwContainerRef = useRef(null);
   const vtkRwRef = useRef(null);
   const rwRef = useRef(null);
   const renRef = useRef(null);
-  const actorListRef = useRef(null);
+  const actorsByLabelRef = useRef(null);
   const activeTPRef = useRef(1);
   const [activeTP, setActiveTP] = useState(1);
 
@@ -105,9 +115,14 @@ export default function ViewerPage(props) {
     const activeTPModel = props.models[activeTPRef.current - 1];
     console.log("[ViewerPage] handleDownload", activeTPModel);
 
-    const polydataList = activeTPModel.map((labelModel) => {
-      return labelModel.model;
-    });
+    const polydataList = activeTPModel
+      .filter((labelModel) => labelModel.model)
+      .map((labelModel) => labelModel.model);
+
+    if (polydataList.length === 0) {
+      console.warn("[ViewerPage] no surfaces at this time point, nothing to download");
+      return;
+    }
 
     assemblePolyData(polydataList).then((polyData) => {
       downloadPolyData(polyData, `tp_${activeTPRef.current}.vtp`);
@@ -116,15 +131,7 @@ export default function ViewerPage(props) {
   };
 
   const updateTPData = () => {
-    const activeTPModel = props.models[activeTPRef.current - 1];
-    const actorList = actorListRef.current;
-
-    // we are assuming each tp has the same number of labels
-    for (let i = 0; i < activeTPModel.length; i++) {
-      const labelModel = activeTPModel[i].model;
-      actorList[i].actor.getMapper().setInputData(labelModel);
-    }
-
+    showTimePointModels(actorsByLabelRef.current, props.models[activeTPRef.current - 1]);
     rwRef.current.render();
   }
 
@@ -142,22 +149,14 @@ export default function ViewerPage(props) {
     const ren = vtkRw.getRenderer();
     ren.setBackground(1, 1, 1);
     
-    // for each label model, create an actor and add it to the renderer
-    let actorList = [];
+    // one actor per label, reused across time points
+    const actorsByLabel = new Map();
+    const labels = new Set(props.models.flat().map((labelModel) => labelModel.label));
 
-    const activeTPModel = props.models[activeTPRef.current - 1];
-    console.log("[ViewerPage] ActiveTPModel", activeTPModel);
-
-    for (let i = 0; i < activeTPModel.length; i++) {
+    for (const label of labels) {
       const actor = vtkActor.newInstance();
       const mapper = vtkMapper.newInstance();
-      
-      const label = activeTPModel[i].label;
-      const labelModel = activeTPModel[i].model;
 
-      console.log("[ViewerPage] label", label, labelModel);
-
-      mapper.setInputData(labelModel);
       mapper.setScalarVisibility(false);
       const rgba = getITKSNAPLabelColorTable()[label];
 
@@ -168,13 +167,11 @@ export default function ViewerPage(props) {
 
       actor.setMapper(mapper);
       ren.addActor(actor);
-      actorList.push({
-        label: label,
-        actor: actor
-      });
+      actorsByLabel.set(label, actor);
     }
 
-    actorListRef.current = actorList;
+    showTimePointModels(actorsByLabel, props.models[activeTPRef.current - 1]);
+    actorsByLabelRef.current = actorsByLabel;
 
     ren.resetCamera();
     rw.render();

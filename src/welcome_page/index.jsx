@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-import React, { useState } from "react";
 import styles from "./styles.module.css";
 
 export default function WelcomePage(props) {
@@ -24,9 +23,10 @@ export default function WelcomePage(props) {
       <div className="fileInputContainer">
         <label className={styles.fileSelectionLabel}>Select a file</label>
         <input type="file" accept=".nii,.nii.gz,application/gzip" onChange={props.onFileChange} />
-        <button 
+        <button
           onClick={props.onGenerateClicked}
           className={styles.buttonGenerate}
+          disabled={props.loading || !props.canGenerate}
         >
           {props.loading ? (
             <>
@@ -38,6 +38,11 @@ export default function WelcomePage(props) {
           )}
         </button>
       </div>
+      {props.error && (
+        <p role="alert" className={styles.errorMessage}>
+          Could not generate models: {props.error}
+        </p>
+      )}
     </div>
   );
 }
